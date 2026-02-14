@@ -1,71 +1,69 @@
+﻿# ============================================================
+# Collaborative Messenger - 硫붿씤 ?ㅼ젙 ?뚯씪
 # ============================================================
-# Collaborative Messenger - 메인 설정 파일
-# ============================================================
-# 이 파일은 애플리케이션의 모든 설정을 한 곳에서 관리합니다.
-# 각 섹션별로 무엇을 설정하는지 한글 주석으로 설명합니다.
+# ???뚯씪? ?좏뵆由ъ??댁뀡??紐⑤뱺 ?ㅼ젙????怨녹뿉??愿由ы빀?덈떎.
+# 媛??뱀뀡蹂꾨줈 臾댁뾿???ㅼ젙?섎뒗吏 ?쒓? 二쇱꽍?쇰줈 ?ㅻ챸?⑸땲??
 # ============================================================
 
 spring:
   application:
-    name: collaborative-messenger    # 애플리케이션 이름 (로그, 모니터링에서 식별용)
+    name: collaborative-messenger    # ?좏뵆由ъ??댁뀡 ?대쫫 (濡쒓렇, 紐⑤땲?곕쭅?먯꽌 ?앸퀎??
 
-  # ===== 파일 업로드 설정 =====
+  # ===== ?뚯씪 ?낅줈???ㅼ젙 =====
   servlet:
     multipart:
-      max-file-size: 10MB          # 단일 파일 최대 크기
-      max-request-size: 10MB       # 요청 전체 최대 크기
+      max-file-size: 10MB          # ?⑥씪 ?뚯씪 理쒕? ?ш린
+      max-request-size: 10MB       # ?붿껌 ?꾩껜 理쒕? ?ш린
 
-  # ===== JPA (데이터베이스 ORM) 설정 =====
-  # JPA는 자바 객체(Entity)를 데이터베이스 테이블에 자동으로 매핑해주는 기술입니다.
+  # ===== JPA (?곗씠?곕쿋?댁뒪 ORM) ?ㅼ젙 =====
+  # JPA???먮컮 媛앹껜(Entity)瑜??곗씠?곕쿋?댁뒪 ?뚯씠釉붿뿉 ?먮룞?쇰줈 留ㅽ븨?댁＜??湲곗닠?낅땲??
   jpa:
     hibernate:
-      ddl-auto: update               # 개발 중에는 update (엔티티 변경 시 테이블 자동 수정)
-                                      # ★ 운영 환경에서는 반드시 'validate'로 변경할 것
-    show-sql: true                    # 실행되는 SQL을 콘솔에 출력 (디버깅용)
-    open-in-view: false               # ★ 샤딩 환경 필수! true면 하나의 DB 연결을 요청 내내 재사용하여
-                                      #    ShardKeyHolder 변경이 반영되지 않음 (shard 교차 버그 발생)
+      ddl-auto: update               # 媛쒕컻 以묒뿉??update (?뷀떚??蹂寃????뚯씠釉??먮룞 ?섏젙)
+                                      # ???댁쁺 ?섍꼍?먯꽌??諛섎뱶??'validate'濡?蹂寃쏀븷 寃?    show-sql: true                    # ?ㅽ뻾?섎뒗 SQL??肄섏넄??異쒕젰 (?붾쾭源낆슜)
+    open-in-view: false               # ???ㅻ뵫 ?섍꼍 ?꾩닔! true硫??섎굹??DB ?곌껐???붿껌 ?대궡 ?ъ궗?⑺븯??                                      #    ShardKeyHolder 蹂寃쎌씠 諛섏쁺?섏? ?딆쓬 (shard 援먯감 踰꾧렇 諛쒖깮)
     properties:
       hibernate:
-        format_sql: true              # SQL을 보기 좋게 포맷팅
-        default_batch_fetch_size: 100 # N+1 문제 방지: 연관 엔티티를 100개씩 한번에 로딩
+        format_sql: true              # SQL??蹂닿린 醫뗪쾶 ?щ㎎??        default_batch_fetch_size: 100 # N+1 臾몄젣 諛⑹?: ?곌? ?뷀떚?곕? 100媛쒖뵫 ?쒕쾲??濡쒕뵫
 
-  # ===== Redis 설정 =====
-  # Redis는 메모리 기반 저장소로, 세션/캐시/접속상태 관리에 사용합니다.
+  # ===== Redis ?ㅼ젙 =====
+  # Redis??硫붾え由?湲곕컲 ??μ냼濡? ?몄뀡/罹먯떆/?묒냽?곹깭 愿由ъ뿉 ?ъ슜?⑸땲??
   data:
     redis:
       host: localhost
       port: 6379
       password: redis1234
 
-  # ===== Kafka 설정 =====
-  # Kafka는 대용량 메시지 처리를 위한 분산 메시지 브로커입니다.
-  # 채팅 메시지가 WebSocket으로 들어오면 → Kafka에 발행 → Consumer가 소비하여 DB 저장 + 브로드캐스트
+  # ===== Kafka ?ㅼ젙 =====
+  # Kafka????⑸웾 硫붿떆吏 泥섎━瑜??꾪븳 遺꾩궛 硫붿떆吏 釉뚮줈而ㅼ엯?덈떎.
+  # 梨꾪똿 硫붿떆吏媛 WebSocket?쇰줈 ?ㅼ뼱?ㅻ㈃ ??Kafka??諛쒗뻾 ??Consumer媛 ?뚮퉬?섏뿬 DB ???+ 釉뚮줈?쒖틦?ㅽ듃
   kafka:
-    bootstrap-servers: localhost:9092  # Kafka 브로커 주소
+    bootstrap-servers: localhost:9092  # Kafka 釉뚮줈而?二쇱냼
+    listener:
+      auto-startup: ${KAFKA_LISTENER_AUTO_STARTUP:false}
     consumer:
-      group-id: messenger-chat-group  # 컨슈머 그룹 (같은 그룹의 컨슈머끼리 파티션을 나눠 처리)
-      auto-offset-reset: earliest     # 처음 연결 시 가장 오래된 메시지부터 읽기
-      # ★ Key/Value 모두 String 직렬화 (KafkaConfig.java에서 설정)
-      # JSON 변환은 Producer/Consumer 코드에서 ObjectMapper로 직접 처리
+      group-id: messenger-chat-group  # 而⑥뒋癒?洹몃９ (媛숈? 洹몃９??而⑥뒋癒몃겮由??뚰떚?섏쓣 ?섎닠 泥섎━)
+      auto-offset-reset: earliest     # 泥섏쓬 ?곌껐 ??媛???ㅻ옒??硫붿떆吏遺???쎄린
+      # ??Key/Value 紐⑤몢 String 吏곷젹??(KafkaConfig.java?먯꽌 ?ㅼ젙)
+      # JSON 蹂?섏? Producer/Consumer 肄붾뱶?먯꽌 ObjectMapper濡?吏곸젒 泥섎━
     producer: {}
 
-  # ===== Thymeleaf 템플릿 엔진 설정 =====
+  # ===== Thymeleaf ?쒗뵆由??붿쭊 ?ㅼ젙 =====
   thymeleaf:
-    cache: false                      # 개발 중에는 캐시 끄기 (HTML 수정 시 즉시 반영)
-    prefix: classpath:/templates/     # HTML 파일 위치
+    cache: false                      # 媛쒕컻 以묒뿉??罹먯떆 ?꾧린 (HTML ?섏젙 ??利됱떆 諛섏쁺)
+    prefix: classpath:/templates/     # HTML ?뚯씪 ?꾩튂
     suffix: .html
 
-  # ===== 세션 설정 (Redis에 저장) =====
-  # 사용자 로그인 세션을 Redis에 저장하면, 서버를 재시작해도 로그인 유지됩니다.
+  # ===== ?몄뀡 ?ㅼ젙 (Redis????? =====
+  # ?ъ슜??濡쒓렇???몄뀡??Redis????ν븯硫? ?쒕쾭瑜??ъ떆?묓빐??濡쒓렇???좎??⑸땲??
   session:
     store-type: redis
-    timeout: 30m                      # 세션 만료 시간: 30분 동안 활동이 없으면 자동 로그아웃
+    timeout: 30m                      # ?몄뀡 留뚮즺 ?쒓컙: 30遺??숈븞 ?쒕룞???놁쑝硫??먮룞 濡쒓렇?꾩썐
 
-# ===== MySQL 샤딩 DataSource (커스텀 설정) =====
-# Spring 기본 datasource 대신, 우리가 직접 2개의 MySQL을 관리합니다.
-# shard_0: 모든 테이블 + 짝수 chatRoomId의 메시지
-# shard_1: 홀수 chatRoomId의 메시지만 저장
-datasource:
+# ===== MySQL ?ㅻ뵫 DataSource (而ㅼ뒪? ?ㅼ젙) =====
+# Spring 湲곕낯 datasource ??? ?곕━媛 吏곸젒 2媛쒖쓽 MySQL??愿由ы빀?덈떎.
+# shard_0: 紐⑤뱺 ?뚯씠釉?+ 吏앹닔 chatRoomId??硫붿떆吏
+# shard_1: ???chatRoomId??硫붿떆吏留????datasource:
   shard0:
     url: jdbc:mysql://localhost:3307/messenger_shard_0?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
     username: messenger
@@ -77,31 +75,32 @@ datasource:
     password: messenger1234
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-# ===== 업무일지 자동 생성 설정 =====
+# ===== ?낅Т?쇱? ?먮룞 ?앹꽦 ?ㅼ젙 =====
 report:
   generation:
-    cron: "0 0 18 * * MON-FRI"       # 월~금 오후 6시에 자동 생성
-    enabled: true                      # true면 스케줄 활성화, false면 비활성화
+    cron: "0 0 18 * * MON-FRI"       # ??湲??ㅽ썑 6?쒖뿉 ?먮룞 ?앹꽦
+    enabled: true                      # true硫??ㅼ?以??쒖꽦?? false硫?鍮꾪솢?깊솕
 
-# ===== 로깅 설정 =====
-# 로그 포맷에 traceId와 userId를 포함시켜 특정 요청의 전체 흐름을 추적할 수 있습니다.
-# 예시: 14:30:25.123 [http-nio-8080-exec-1] [traceId=a1b2c3d4] [user=42] DEBUG ChatService - 메시지 저장 완료
+# ===== 濡쒓퉭 ?ㅼ젙 =====
+# 濡쒓렇 ?щ㎎??traceId? userId瑜??ы븿?쒖폒 ?뱀젙 ?붿껌???꾩껜 ?먮쫫??異붿쟻?????덉뒿?덈떎.
+# ?덉떆: 14:30:25.123 [http-nio-8080-exec-1] [traceId=a1b2c3d4] [user=42] DEBUG ChatService - 硫붿떆吏 ????꾨즺
 logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] [traceId=%X{traceId}] [user=%X{userId}] %-5level %logger{36} - %msg%n"
   level:
-    com.messenger: DEBUG                          # 우리 코드는 DEBUG 레벨로 상세 출력
-    com.messenger.infrastructure.sharding: DEBUG  # 샤딩 라우팅 로그 (어떤 샤드로 가는지)
-    com.messenger.infrastructure.kafka: DEBUG     # Kafka 메시지 발행/소비 로그
-    org.springframework.web.socket: INFO          # WebSocket 연결 로그
-    org.hibernate.SQL: DEBUG                      # Hibernate가 실행하는 SQL 출력
-    org.hibernate.type.descriptor.sql: TRACE      # SQL 파라미터 바인딩 값 출력
+    com.messenger: DEBUG                          # ?곕━ 肄붾뱶??DEBUG ?덈꺼濡??곸꽭 異쒕젰
+    com.messenger.infrastructure.sharding: DEBUG  # ?ㅻ뵫 ?쇱슦??濡쒓렇 (?대뼡 ?ㅻ뱶濡?媛?붿?)
+    com.messenger.infrastructure.kafka: DEBUG     # Kafka 硫붿떆吏 諛쒗뻾/?뚮퉬 濡쒓렇
+    org.springframework.web.socket: INFO          # WebSocket ?곌껐 濡쒓렇
+    org.hibernate.SQL: DEBUG                      # Hibernate媛 ?ㅽ뻾?섎뒗 SQL 異쒕젰
+    org.hibernate.type.descriptor.sql: TRACE      # SQL ?뚮씪誘명꽣 諛붿씤??媛?異쒕젰
 
-# ===== 서버 설정 =====
+# ===== ?쒕쾭 ?ㅼ젙 =====
 server:
   port: ${PORT:8888}
   servlet:
     session:
       cookie:
-        http-only: true               # JavaScript에서 쿠키 접근 차단 (보안)
-        secure: false                  # 개발 중에는 false (HTTPS가 아니므로)
+        http-only: true               # JavaScript?먯꽌 荑좏궎 ?묎렐 李⑤떒 (蹂댁븞)
+        secure: false                  # 媛쒕컻 以묒뿉??false (HTTPS媛 ?꾨땲誘濡?
+
