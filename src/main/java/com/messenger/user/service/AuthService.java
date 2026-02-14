@@ -59,7 +59,11 @@ public class AuthService {
         session.setAttribute("role", user.getRole().name());
 
         user.updateStatus(UserStatus.ONLINE);
-        chatPresenceService.setOnline(user.getId());
+        try {
+            chatPresenceService.setOnline(user.getId());
+        } catch (Exception e) {
+            log.warn("[login] failed to update redis presence. userId={}, reason={}", user.getId(), e.getMessage());
+        }
 
         log.info("[login] userId={}, username={}, sessionId={}", user.getId(), user.getUsername(), session.getId());
         return UserResponse.from(user);
@@ -72,7 +76,11 @@ public class AuthService {
 
         if (userId != null) {
             userRepository.findById(userId).ifPresent(u -> u.updateStatus(UserStatus.OFFLINE));
-            chatPresenceService.setOffline(userId);
+            try {
+                chatPresenceService.setOffline(userId);
+            } catch (Exception e) {
+                log.warn("[logout] failed to update redis presence. userId={}, reason={}", userId, e.getMessage());
+            }
         }
 
         log.info("[logout] username={}, sessionId={}", username, session.getId());
