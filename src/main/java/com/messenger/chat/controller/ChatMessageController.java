@@ -5,10 +5,12 @@ import com.messenger.chat.dto.ChatMessageResponse;
 import com.messenger.chat.event.ChatMessageEvent;
 import com.messenger.chat.service.ChatMessageService;
 import com.messenger.common.dto.ApiResponse;
+import com.messenger.infrastructure.kafka.ChatMessageConsumer;
 import com.messenger.infrastructure.kafka.ChatMessageProducer;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +35,10 @@ public class ChatMessageController {
 
     private final ChatMessageService chatMessageService;
     private final ChatMessageProducer chatMessageProducer;
+    private final ChatMessageConsumer chatMessageConsumer;
+
+    @Value("${spring.kafka.listener.auto-startup:true}")
+    private boolean kafkaListenerAutoStartup;
 
     @GetMapping("/{roomId}/messages")
     public ResponseEntity<ApiResponse<List<ChatMessageResponse>>> getMessages(
@@ -107,11 +113,6 @@ public class ChatMessageController {
     }
 
     private void publishMessageEvent(Long roomId, Long senderId, String senderName, ChatMessageRequest request) {
-        log.info("[REST 메시지 전송] roomId={}, senderId={}, type={}",
-                roomId,
-                senderId,
-                request.getMessageType());
-
         ChatMessageEvent event = ChatMessageEvent.builder()
                 .chatRoomId(roomId)
                 .senderId(senderId != null ? senderId : 0L)
@@ -125,6 +126,17 @@ public class ChatMessageController {
                 .sentAt(LocalDateTime.now())
                 .build();
 
-        chatMessageProducer.sendMessage(event);
+        if (!kafkaListenerAutoStartup) {
+            chatMessageConsumer.consumeEvent(event);
+            return;
+        }
+
+        try {
+            chatMessageProducer.sendMessage(event);
+        } catch (Exception e) {
+            log.warn("[chat-send] kafka publish failed. fallback to direct consume. roomId={}, reason={}",
+                    roomId, e.getMessage());
+            chatMessageConsumer.consumeEvent(event);
+        }
     }
 }
