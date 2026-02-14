@@ -10,7 +10,7 @@
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: ${JPA_SHOW_SQL:false}
     open-in-view: false
     properties:
       hibernate:
@@ -56,21 +56,25 @@ datasource:
 report:
   generation:
     cron: "0 0 18 * * MON-FRI"
-    enabled: true
+    enabled: ${REPORT_GENERATION_ENABLED:false}
 
 logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] [traceId=%X{traceId}] [user=%X{userId}] %-5level %logger{36} - %msg%n"
   level:
-    com.messenger: DEBUG
-    com.messenger.infrastructure.sharding: DEBUG
+    com.messenger: ${APP_LOG_LEVEL:INFO}
+    com.messenger.infrastructure.sharding: ${SHARDING_LOG_LEVEL:INFO}
     com.messenger.infrastructure.kafka: INFO
     org.springframework.web.socket: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql: TRACE
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql: OFF
 
 server:
   port: ${PORT:8888}
+  tomcat:
+    threads:
+      max: ${TOMCAT_MAX_THREADS:40}
+      min-spare: ${TOMCAT_MIN_SPARE_THREADS:5}
   servlet:
     session:
       cookie:

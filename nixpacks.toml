@@ -5,4 +5,4 @@ nixPkgs = ["jdk17"]
 cmds = ["./gradlew clean bootJar -x test"]
 
 [start]
-cmd = "java -Xms128m -Xmx320m -Dserver.port=$PORT -jar build/libs/collaborative-messenger-0.0.1-SNAPSHOT.jar"
+cmd = "java -Xms96m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -Dserver.port=$PORT -jar build/libs/collaborative-messenger-0.0.1-SNAPSHOT.jar"
