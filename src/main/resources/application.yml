@@ -1,106 +1,78 @@
-﻿# ============================================================
-# Collaborative Messenger - 硫붿씤 ?ㅼ젙 ?뚯씪
-# ============================================================
-# ???뚯씪? ?좏뵆由ъ??댁뀡??紐⑤뱺 ?ㅼ젙????怨녹뿉??愿由ы빀?덈떎.
-# 媛??뱀뀡蹂꾨줈 臾댁뾿???ㅼ젙?섎뒗吏 ?쒓? 二쇱꽍?쇰줈 ?ㅻ챸?⑸땲??
-# ============================================================
-
-spring:
+﻿spring:
   application:
-    name: collaborative-messenger    # ?좏뵆由ъ??댁뀡 ?대쫫 (濡쒓렇, 紐⑤땲?곕쭅?먯꽌 ?앸퀎??
+    name: collaborative-messenger
 
-  # ===== ?뚯씪 ?낅줈???ㅼ젙 =====
   servlet:
     multipart:
-      max-file-size: 10MB          # ?⑥씪 ?뚯씪 理쒕? ?ш린
-      max-request-size: 10MB       # ?붿껌 ?꾩껜 理쒕? ?ш린
+      max-file-size: 10MB
+      max-request-size: 10MB
 
-  # ===== JPA (?곗씠?곕쿋?댁뒪 ORM) ?ㅼ젙 =====
-  # JPA???먮컮 媛앹껜(Entity)瑜??곗씠?곕쿋?댁뒪 ?뚯씠釉붿뿉 ?먮룞?쇰줈 留ㅽ븨?댁＜??湲곗닠?낅땲??
   jpa:
     hibernate:
-      ddl-auto: update               # 媛쒕컻 以묒뿉??update (?뷀떚??蹂寃????뚯씠釉??먮룞 ?섏젙)
-                                      # ???댁쁺 ?섍꼍?먯꽌??諛섎뱶??'validate'濡?蹂寃쏀븷 寃?    show-sql: true                    # ?ㅽ뻾?섎뒗 SQL??肄섏넄??異쒕젰 (?붾쾭源낆슜)
-    open-in-view: false               # ???ㅻ뵫 ?섍꼍 ?꾩닔! true硫??섎굹??DB ?곌껐???붿껌 ?대궡 ?ъ궗?⑺븯??                                      #    ShardKeyHolder 蹂寃쎌씠 諛섏쁺?섏? ?딆쓬 (shard 援먯감 踰꾧렇 諛쒖깮)
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
     properties:
       hibernate:
-        format_sql: true              # SQL??蹂닿린 醫뗪쾶 ?щ㎎??        default_batch_fetch_size: 100 # N+1 臾몄젣 諛⑹?: ?곌? ?뷀떚?곕? 100媛쒖뵫 ?쒕쾲??濡쒕뵫
+        format_sql: true
+        default_batch_fetch_size: 100
 
-  # ===== Redis ?ㅼ젙 =====
-  # Redis??硫붾え由?湲곕컲 ??μ냼濡? ?몄뀡/罹먯떆/?묒냽?곹깭 愿由ъ뿉 ?ъ슜?⑸땲??
   data:
     redis:
-      host: localhost
-      port: 6379
-      password: redis1234
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:redis1234}
 
-  # ===== Kafka ?ㅼ젙 =====
-  # Kafka????⑸웾 硫붿떆吏 泥섎━瑜??꾪븳 遺꾩궛 硫붿떆吏 釉뚮줈而ㅼ엯?덈떎.
-  # 梨꾪똿 硫붿떆吏媛 WebSocket?쇰줈 ?ㅼ뼱?ㅻ㈃ ??Kafka??諛쒗뻾 ??Consumer媛 ?뚮퉬?섏뿬 DB ???+ 釉뚮줈?쒖틦?ㅽ듃
   kafka:
-    bootstrap-servers: localhost:9092  # Kafka 釉뚮줈而?二쇱냼
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     listener:
       auto-startup: ${KAFKA_LISTENER_AUTO_STARTUP:false}
     consumer:
-      group-id: messenger-chat-group  # 而⑥뒋癒?洹몃９ (媛숈? 洹몃９??而⑥뒋癒몃겮由??뚰떚?섏쓣 ?섎닠 泥섎━)
-      auto-offset-reset: earliest     # 泥섏쓬 ?곌껐 ??媛???ㅻ옒??硫붿떆吏遺???쎄린
-      # ??Key/Value 紐⑤몢 String 吏곷젹??(KafkaConfig.java?먯꽌 ?ㅼ젙)
-      # JSON 蹂?섏? Producer/Consumer 肄붾뱶?먯꽌 ObjectMapper濡?吏곸젒 泥섎━
+      group-id: messenger-chat-group
+      auto-offset-reset: earliest
     producer: {}
 
-  # ===== Thymeleaf ?쒗뵆由??붿쭊 ?ㅼ젙 =====
   thymeleaf:
-    cache: false                      # 媛쒕컻 以묒뿉??罹먯떆 ?꾧린 (HTML ?섏젙 ??利됱떆 諛섏쁺)
-    prefix: classpath:/templates/     # HTML ?뚯씪 ?꾩튂
+    cache: false
+    prefix: classpath:/templates/
     suffix: .html
 
-  # ===== ?몄뀡 ?ㅼ젙 (Redis????? =====
-  # ?ъ슜??濡쒓렇???몄뀡??Redis????ν븯硫? ?쒕쾭瑜??ъ떆?묓빐??濡쒓렇???좎??⑸땲??
   session:
     store-type: redis
-    timeout: 30m                      # ?몄뀡 留뚮즺 ?쒓컙: 30遺??숈븞 ?쒕룞???놁쑝硫??먮룞 濡쒓렇?꾩썐
+    timeout: 30m
 
-# ===== MySQL ?ㅻ뵫 DataSource (而ㅼ뒪? ?ㅼ젙) =====
-# Spring 湲곕낯 datasource ??? ?곕━媛 吏곸젒 2媛쒖쓽 MySQL??愿由ы빀?덈떎.
-# shard_0: 紐⑤뱺 ?뚯씠釉?+ 吏앹닔 chatRoomId??硫붿떆吏
-# shard_1: ???chatRoomId??硫붿떆吏留????datasource:
+datasource:
   shard0:
-    url: jdbc:mysql://localhost:3307/messenger_shard_0?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
-    username: messenger
-    password: messenger1234
+    url: ${DATASOURCE_SHARD0_URL:jdbc:mysql://localhost:3307/messenger_shard_0?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true}
+    username: ${DATASOURCE_SHARD0_USERNAME:messenger}
+    password: ${DATASOURCE_SHARD0_PASSWORD:messenger1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
   shard1:
-    url: jdbc:mysql://localhost:3308/messenger_shard_1?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
-    username: messenger
-    password: messenger1234
+    url: ${DATASOURCE_SHARD1_URL:jdbc:mysql://localhost:3308/messenger_shard_1?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true}
+    username: ${DATASOURCE_SHARD1_USERNAME:messenger}
+    password: ${DATASOURCE_SHARD1_PASSWORD:messenger1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-# ===== ?낅Т?쇱? ?먮룞 ?앹꽦 ?ㅼ젙 =====
 report:
   generation:
-    cron: "0 0 18 * * MON-FRI"       # ??湲??ㅽ썑 6?쒖뿉 ?먮룞 ?앹꽦
-    enabled: true                      # true硫??ㅼ?以??쒖꽦?? false硫?鍮꾪솢?깊솕
+    cron: "0 0 18 * * MON-FRI"
+    enabled: true
 
-# ===== 濡쒓퉭 ?ㅼ젙 =====
-# 濡쒓렇 ?щ㎎??traceId? userId瑜??ы븿?쒖폒 ?뱀젙 ?붿껌???꾩껜 ?먮쫫??異붿쟻?????덉뒿?덈떎.
-# ?덉떆: 14:30:25.123 [http-nio-8080-exec-1] [traceId=a1b2c3d4] [user=42] DEBUG ChatService - 硫붿떆吏 ????꾨즺
 logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] [traceId=%X{traceId}] [user=%X{userId}] %-5level %logger{36} - %msg%n"
   level:
-    com.messenger: DEBUG                          # ?곕━ 肄붾뱶??DEBUG ?덈꺼濡??곸꽭 異쒕젰
-    com.messenger.infrastructure.sharding: DEBUG  # ?ㅻ뵫 ?쇱슦??濡쒓렇 (?대뼡 ?ㅻ뱶濡?媛?붿?)
-    com.messenger.infrastructure.kafka: DEBUG     # Kafka 硫붿떆吏 諛쒗뻾/?뚮퉬 濡쒓렇
-    org.springframework.web.socket: INFO          # WebSocket ?곌껐 濡쒓렇
-    org.hibernate.SQL: DEBUG                      # Hibernate媛 ?ㅽ뻾?섎뒗 SQL 異쒕젰
-    org.hibernate.type.descriptor.sql: TRACE      # SQL ?뚮씪誘명꽣 諛붿씤??媛?異쒕젰
+    com.messenger: DEBUG
+    com.messenger.infrastructure.sharding: DEBUG
+    com.messenger.infrastructure.kafka: INFO
+    org.springframework.web.socket: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
 
-# ===== ?쒕쾭 ?ㅼ젙 =====
 server:
   port: ${PORT:8888}
   servlet:
     session:
       cookie:
-        http-only: true               # JavaScript?먯꽌 荑좏궎 ?묎렐 李⑤떒 (蹂댁븞)
-        secure: false                  # 媛쒕컻 以묒뿉??false (HTTPS媛 ?꾨땲誘濡?
-
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:false}
