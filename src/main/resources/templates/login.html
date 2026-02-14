@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narsil - Sign In</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #08080e;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* === 페이지 외곽 보더 글로우 === */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            border: 2px solid transparent;
+            border-image: linear-gradient(135deg, #6c3ce0, #4f46e5, #7c3aed, #6c3ce0) 1;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* === 배경 글로우 오브들 === */
+        .bg-orbs {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, #22c55e 0%, transparent 70%);
+            left: -5%;
+            top: 30%;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle, #f59e0b 0%, #ea580c 30%, transparent 70%);
+            left: 30%;
+            top: 20%;
+            animation-delay: -2s;
+            opacity: 0.5;
+        }
+
+        .orb-3 {
+            width: 450px;
+            height: 450px;
+            background: radial-gradient(circle, #d946ef 0%, #a855f7 30%, transparent 70%);
+            right: -5%;
+            top: 25%;
+            animation-delay: -4s;
+        }
+
+        .orb-4 {
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+            left: 50%;
+            bottom: 10%;
+            animation-delay: -6s;
+            opacity: 0.4;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) scale(1); }
+            33% { transform: translateY(-20px) scale(1.05); }
+            66% { transform: translateY(15px) scale(0.95); }
+        }
+
+        /* === 글래스 카드 === */
+        .glass-card {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 440px;
+            padding: 48px 40px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            box-shadow:
+                0 0 40px rgba(0, 0, 0, 0.3),
+                inset 0 0 40px rgba(255, 255, 255, 0.02);
+        }
+
+        /* === 로고 아이콘 === */
+        .logo-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .logo-icon svg {
+            width: 28px;
+            height: 28px;
+            color: white;
+        }
+
+        /* === 타이틀 === */
+        .card-title {
+            text-align: center;
+            color: #ffffff;
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .card-subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+            margin-bottom: 36px;
+            font-weight: 400;
+        }
+
+        /* === 에러 메시지 === */
+        .error-msg {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-msg.show {
+            display: block;
+            animation: shake 0.4s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        /* === 폼 라벨 === */
+        .form-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        /* === 입력 필드 === */
+        .narsil-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .narsil-input::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+        }
+
+        .narsil-input:focus {
+            border-color: rgba(139, 92, 246, 0.6);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+        }
+
+        /* === 로그인 버튼 === */
+        .btn-narsil {
+            width: 100%;
+            padding: 14px;
+            background: #ffffff;
+            color: #0a0a0e;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 8px;
+            letter-spacing: -0.2px;
+        }
+
+        .btn-narsil:hover {
+            background: #f0f0f0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-narsil:active {
+            transform: translateY(0);
+        }
+
+        /* === 구분선 === */
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 28px 0;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .divider span {
+            padding: 0 16px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* === 회원가입 링크 === */
+        .signup-link {
+            text-align: center;
+            margin-top: 28px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .signup-link span {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 13px;
+        }
+
+        .signup-link a {
+            color: #a78bfa;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13px;
+            transition: color 0.2s;
+        }
+
+        .signup-link a:hover {
+            color: #c4b5fd;
+        }
+
+        /* === 하단 브랜딩 === */
+        .brand-footer {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            color: rgba(255, 255, 255, 0.15);
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* === 입력 그룹 간격 === */
+        .input-group-narsil {
+            margin-bottom: 20px;
+        }
+
+        /* === 반응형 === */
+        @media (max-width: 480px) {
+            .glass-card {
+                margin: 16px;
+                padding: 36px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 배경 글로우 오브 -->
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="orb orb-4"></div>
+    </div>
+
+    <!-- 로그인 카드 -->
+    <div class="glass-card">
+        <!-- 로고 -->
+        <div class="logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+            </svg>
+        </div>
+
+        <h1 class="card-title">Welcome To Narsil</h1>
+        <p class="card-subtitle">Sign in to continue to your workspace</p>
+
+        <!-- 에러 메시지 -->
+        <div class="error-msg" id="errorMessage"></div>
+
+        <!-- 로그인 폼 -->
+        <form id="loginForm">
+            <div class="input-group-narsil">
+                <label class="form-label">Username</label>
+                <input type="text" class="narsil-input" id="username"
+                       placeholder="Enter your username" required>
+            </div>
+
+            <div class="input-group-narsil">
+                <label class="form-label">Password</label>
+                <input type="password" class="narsil-input" id="password"
+                       placeholder="Enter your password" required>
+            </div>
+
+            <button type="submit" class="btn-narsil">Sign In</button>
+        </form>
+
+        <div class="signup-link">
+            <span>Don't have an account? </span>
+            <a th:href="@{/auth/register}">Create Account</a>
+        </div>
+    </div>
+
+    <!-- 하단 브랜딩 -->
+    <div class="brand-footer">Narsil Messenger</div>
+
+    <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
+    <script>
+        $('#loginForm').on('submit', function(e) {
+            e.preventDefault();
+
+            // 버튼 로딩 상태
+            var btn = $('.btn-narsil');
+            btn.prop('disabled', true).text('Signing in...');
+
+            $.ajax({
+                url: '/api/auth/login',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    username: $('#username').val(),
+                    password: $('#password').val()
+                }),
+                success: function(response) {
+                    btn.text('Welcome!');
+                    setTimeout(function() {
+                        window.location.href = '/chat/rooms';
+                    }, 500);
+                },
+                error: function(xhr) {
+                    var message = 'Login failed. Please check your credentials.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        message = xhr.responseJSON.message;
+                    }
+                    $('#errorMessage').text(message).addClass('show');
+                    btn.prop('disabled', false).text('Sign In');
+                }
+            });
+        });
+
+        // 입력 시 에러 숨기기
+        $('input').on('input', function() {
+            $('#errorMessage').removeClass('show');
+        });
+    </script>
+</body>
+</html>

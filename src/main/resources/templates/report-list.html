@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narsil - Daily Reports</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body class="page-border">
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- 네비게이션 -->
+    <nav class="narsil-nav d-flex justify-content-between align-items-center">
+        <a href="/chat/rooms" class="nav-brand"><span>Narsil</span></a>
+        <div class="d-flex align-items-center gap-8">
+            <a th:href="@{/chat/rooms}" class="nav-btn">Chat</a>
+            <a th:href="@{/friends}" class="nav-btn">Friends</a>
+            <a th:href="@{/auth/logout}" class="nav-btn">Logout</a>
+        </div>
+    </nav>
+
+    <div class="report-container" style="position:relative; z-index:1;">
+        <!-- 헤더 -->
+        <div class="d-flex justify-content-between align-items-center mb-4 mt-3">
+            <div>
+                <h2 class="section-title">Daily Reports</h2>
+                <p class="section-sub">Your auto-generated work summaries</p>
+            </div>
+            <button class="btn-narsil btn-narsil-sm" id="generateBtn" onclick="generateReport()">
+                Generate Today
+            </button>
+        </div>
+
+        <!-- 빈 상태 -->
+        <div th:if="${#lists.isEmpty(reports)}" class="glass-card">
+            <div class="empty-state">
+                <p>No reports yet.</p>
+                <p>Reports are auto-generated daily at 18:00,</p>
+                <p>or click "Generate Today" to create one now.</p>
+            </div>
+        </div>
+
+        <!-- 업무일지 목록 -->
+        <div th:each="report : ${reports}" class="report-card">
+            <a th:href="@{/reports/{id}(id=${report.id})}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="report-date" th:text="${report.reportDate}">2024-01-15</div>
+                        <div class="report-summary mt-1" th:text="${report.summary}">Summary</div>
+                        <div class="mt-2" style="font-size:12px; color:var(--text-muted);">
+                            <span th:text="${report.totalMessageCount} + ' messages'">0</span>
+                            &middot;
+                            <span th:text="${report.activeRoomCount} + ' active rooms'">0</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span th:if="${report.status.name() == 'AUTO_GENERATED'}"
+                              class="report-status auto-generated">Auto</span>
+                        <span th:if="${report.status.name() == 'EDITED'}"
+                              class="report-status edited">Edited</span>
+                        <span th:if="${report.status.name() == 'CONFIRMED'}"
+                              class="report-status confirmed">Confirmed</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
+    <script>
+        function generateReport() {
+            var btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+
+            $.ajax({
+                url: '/api/reports/generate',
+                method: 'POST',
+                success: function(response) {
+                    window.location.reload();
+                },
+                error: function(xhr) {
+                    alert('Failed to generate report.');
+                    btn.disabled = false;
+                    btn.textContent = 'Generate Today';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

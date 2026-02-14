@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narsil - Chat Rooms</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body class="page-border">
+    <!-- 배경 오브 -->
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- 네비게이션 -->
+    <nav class="narsil-nav d-flex justify-content-between align-items-center">
+        <a href="/chat/rooms" class="nav-brand"><span>Narsil</span></a>
+        <div class="d-flex align-items-center gap-8">
+            <a th:href="@{/profile}" class="nav-user" style="text-decoration:none;" th:text="${displayName}">User</a>
+            <a th:href="@{/friends}" class="nav-btn">Friends</a>
+            <a th:href="@{/reports}" class="nav-btn">Reports</a>
+            <a th:href="@{/auth/logout}" class="nav-btn">Logout</a>
+        </div>
+    </nav>
+
+    <div style="position:relative; z-index:1; max-width:700px; margin:0 auto; padding:32px 20px;">
+        <!-- 헤더 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="section-title">Chat Rooms</h2>
+                <p class="section-sub">Your active conversations</p>
+            </div>
+            <button class="btn-narsil btn-narsil-sm" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+                + New Room
+            </button>
+        </div>
+
+        <!-- 채팅방 목록 -->
+        <div class="glass-card" style="overflow:hidden;">
+            <a th:each="room : ${rooms}"
+               th:href="@{/chat/room/{id}(id=${room.id})}"
+               class="narsil-list-item">
+                <div style="flex:1; min-width:0;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-8">
+                            <span style="font-weight:600; font-size:15px;" th:text="${room.name}">Room</span>
+                            <span th:if="${room.roomType == 'DIRECT'}"
+                                  class="badge-narsil badge-cyan" style="font-size:10px;">DM</span>
+                        </div>
+                        <span class="room-time" th:if="${room.lastMessageTime}"
+                              th:text="${room.lastMessageTime}"></span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between" style="margin-top:4px;">
+                        <div style="min-width:0; flex:1;">
+                            <div class="room-last-message" th:if="${room.lastMessage}"
+                                 th:text="${room.lastMessage}"></div>
+                            <div class="room-last-message" th:unless="${room.lastMessage}">
+                                <span th:text="${room.memberCount} + ' members'">0</span>
+                            </div>
+                        </div>
+                        <span th:if="${room.unreadCount > 0}" class="unread-badge"
+                              th:text="${room.unreadCount > 99 ? '99+' : room.unreadCount}"
+                              style="margin-left:12px;"></span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- 비어있을 때 -->
+            <div th:if="${#lists.isEmpty(rooms)}" class="empty-state">
+                <p>No chat rooms yet.</p>
+                <p>Create a new room to start chatting!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 채팅방 생성 모달 -->
+    <div class="modal fade narsil-modal" id="createRoomModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Room</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createRoomForm">
+                        <div class="mb-3">
+                            <label class="form-label">Room Name</label>
+                            <input type="text" class="narsil-input" id="roomName" required
+                                   placeholder="e.g. Frontend Team Meeting">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Room Type</label>
+                            <select class="form-select" id="roomType">
+                                <option value="GROUP">Group Chat</option>
+                                <option value="DIRECT">Direct (1:1)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Invite Users (comma separated)</label>
+                            <input type="text" class="narsil-input" id="memberUsernames"
+                                   placeholder="e.g. hong123, kim456">
+                            <small style="color:var(--text-muted); font-size:12px;">Enter usernames separated by commas</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn-narsil btn-narsil-sm" onclick="createRoom()">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
+    <script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script>
+    <script>
+        function createRoom() {
+            var memberStr = $('#memberUsernames').val();
+            var memberUsernames = memberStr ? memberStr.split(',').map(function(name) {
+                return name.trim();
+            }).filter(function(name) { return name.length > 0; }) : [];
+
+            $.ajax({
+                url: '/api/chat/rooms',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    name: $('#roomName').val(),
+                    roomType: $('#roomType').val(),
+                    memberUsernames: memberUsernames
+                }),
+                success: function(response) {
+                    window.location.reload();
+                },
+                error: function(xhr) {
+                    alert(xhr.responseJSON ? xhr.responseJSON.message : 'Failed to create room');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

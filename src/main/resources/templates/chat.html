@@ -1,0 +1,224 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${room.name} + ' - Narsil'">Chat</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <!-- ?ㅻ퉬寃뚯씠??-->
+    <nav class="narsil-nav d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-12">
+            <a th:href="@{/chat/rooms}" class="nav-btn">&larr; Back</a>
+            <div>
+                <span style="font-weight:600; font-size:15px;" th:text="${room.name}">Room</span>
+                <span id="memberCountLabel" style="color:var(--text-muted); font-size:12px; margin-left:8px;"
+                      th:text="'(' + ${room.memberCount} + ' members)'"></span>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-8">
+            <button class="nav-btn" onclick="toggleMemberPanel()">Members</button>
+            <button class="nav-btn" style="border-color:rgba(239,68,68,0.3); color:rgba(239,68,68,0.7);"
+                    onclick="leaveRoom()">Leave</button>
+        </div>
+    </nav>
+
+    <!-- 梨꾪똿 ?곸뿭 -->
+    <div class="chat-container" style="position:relative;">
+        <!-- 硫ㅻ쾭 ?ъ씠???⑤꼸 -->
+        <div id="memberPanel" style="display:none; position:absolute; top:0; right:0; bottom:0; width:280px;
+             background:var(--bg-secondary); border-left:1px solid var(--border-subtle); z-index:10;
+             overflow-y:auto; flex-shrink:0;">
+            <div style="padding:16px 20px; border-bottom:1px solid var(--border-subtle);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span style="font-weight:700; font-size:14px;">Members</span>
+                    <button class="nav-btn" style="font-size:11px; padding:4px 10px;" onclick="toggleMemberPanel()">Close</button>
+                </div>
+                <!-- 珥덈? ?낅젰 -->
+                <div class="d-flex gap-8" style="margin-top:12px;" th:if="${room.roomType != 'DIRECT'}">
+                    <input type="text" class="narsil-input" id="inviteUsername"
+                           placeholder="Username" style="padding:8px 12px; font-size:12px;">
+                    <button class="btn-narsil btn-narsil-sm" onclick="inviteMember()" style="white-space:nowrap;">Invite</button>
+                </div>
+            </div>
+            <div id="memberList"></div>
+            <div id="inviteMsg" style="display:none; padding:8px 20px; font-size:12px;"></div>
+        </div>
+
+        <!-- 硫붿떆吏 紐⑸줉 -->
+        <div id="messageArea" class="chat-messages">
+            <div class="empty-state" id="loadingIndicator" style="padding:24px;">
+                <p style="color:var(--text-muted);">Loading messages...</p>
+            </div>
+        </div>
+
+        <!-- ?곌껐 ?곹깭 -->
+        <div id="connectionStatus" class="connection-status d-none">
+            Connecting to server...
+        </div>
+
+        <!-- ?낅젰 ?곸뿭 -->
+        <div class="chat-input-area">
+            <form id="messageForm" class="d-flex gap-12">
+                <input type="file" id="fileInput" style="display:none;">
+                <button type="button" id="attachBtn" class="nav-btn" style="padding:0 12px;">+</button>
+                <input type="text" id="messageInput" class="narsil-input"
+                       placeholder="Type a message..." autocomplete="off">
+                <button type="submit" class="btn-send">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade narsil-modal" id="fileConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Send File</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div style="margin-bottom:10px; font-size:13px; color:var(--text-secondary);">File name</div>
+                    <div id="fileConfirmName" style="font-weight:600; margin-bottom:6px;"></div>
+                    <div id="fileConfirmSize" style="font-size:12px; color:var(--text-muted); margin-bottom:14px;"></div>
+
+                    <div id="filePreviewImageWrap" style="display:none; margin-bottom:10px;">
+                        <img id="filePreviewImage" alt="preview"
+                             style="max-width:100%; max-height:260px; border-radius:10px; border:1px solid var(--border-subtle);">
+                    </div>
+                    <div id="filePreviewGeneric" style="display:none; padding:12px; border:1px solid var(--border-subtle); border-radius:10px; color:var(--text-secondary);">
+                        Preview is not available for this file type.
+                    </div>
+
+                    <div style="margin-top:14px; font-size:13px;">Do you want to send this file?</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn-narsil btn-narsil-sm" id="confirmFileSendBtn">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        var ROOM_ID = /*[[${room.id}]]*/ 0;
+        var USER_ID = /*[[${userId}]]*/ 0;
+        var DISPLAY_NAME = /*[[${displayName}]]*/ 'Anonymous';
+        var ROOM_TYPE = /*[[${room.roomType}]]*/ 'GROUP';
+    </script>
+
+    <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
+    <script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script>
+    <script th:src="@{/webjars/sockjs-client/1.5.1/sockjs.min.js}"></script>
+    <script th:src="@{/webjars/stomp-websocket/2.3.4/stomp.min.js}"></script>
+    <script th:src="@{/js/chat.js}"></script>
+    <script>
+        var memberPanelOpen = false;
+
+        function toggleMemberPanel() {
+            memberPanelOpen = !memberPanelOpen;
+            $('#memberPanel').toggle(memberPanelOpen);
+            if (memberPanelOpen) loadMembers();
+        }
+
+        function loadMembers() {
+            $.get('/api/chat/rooms/' + ROOM_ID + '/members', function(r) {
+                var list = $('#memberList');
+                list.empty();
+                $('#memberCountLabel').text('(' + r.data.length + ' members)');
+                r.data.forEach(function(m) {
+                    var initial = m.displayName ? m.displayName.charAt(0) : '?';
+                    var isMe = (m.userId == USER_ID);
+                    var actionHtml = '';
+                    if (!isMe && ROOM_TYPE !== 'DIRECT') {
+                        actionHtml = '<button class="btn-ghost btn-ghost-danger" style="font-size:10px; padding:2px 8px;" ' +
+                                     'onclick="kickMember(' + m.userId + ', \'' + m.displayName.replace(/'/g, "\\'") + '\')">Kick</button>';
+                    }
+                    var avatarHtml;
+                    if (m.profileImage) {
+                        avatarHtml = '<div class="member-avatar" style="overflow:hidden; padding:0;">' +
+                                     '<img src="' + m.profileImage + '" style="width:100%; height:100%; object-fit:cover; border-radius:50%;"></div>';
+                    } else {
+                        avatarHtml = '<div class="member-avatar">' + escapeHtml(initial) + '</div>';
+                    }
+                    list.append(
+                        '<div class="narsil-list-item" style="padding:10px 20px;">' +
+                        '  <div class="d-flex align-items-center gap-8">' +
+                        '    ' + avatarHtml +
+                        '    <div>' +
+                        '      <div style="font-weight:600; font-size:13px;">' + escapeHtml(m.displayName) +
+                               (isMe ? ' <span style="color:var(--accent-violet); font-size:11px;">(you)</span>' : '') + '</div>' +
+                        '      <div style="color:var(--text-muted); font-size:11px;">@' + escapeHtml(m.username) + '</div>' +
+                        '    </div>' +
+                        '  </div>' +
+                        '  ' + actionHtml +
+                        '</div>'
+                    );
+                });
+            });
+        }
+
+        function inviteMember() {
+            var username = $('#inviteUsername').val().trim();
+            if (!username) return;
+            $.ajax({
+                url: '/api/chat/rooms/' + ROOM_ID + '/members',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ username: username }),
+                success: function() {
+                    $('#inviteUsername').val('');
+                    showInviteMsg('Invited successfully!', true);
+                    loadMembers();
+                },
+                error: function(xhr) {
+                    showInviteMsg(xhr.responseJSON ? xhr.responseJSON.message : 'Invite failed.', false);
+                }
+            });
+        }
+
+        function kickMember(userId, name) {
+            if (!confirm('Remove ' + name + ' from this room?')) return;
+            $.ajax({
+                url: '/api/chat/rooms/' + ROOM_ID + '/members/' + userId,
+                type: 'DELETE',
+                success: function() {
+                    showInviteMsg('Member removed.', true);
+                    loadMembers();
+                },
+                error: function(xhr) {
+                    showInviteMsg(xhr.responseJSON ? xhr.responseJSON.message : 'Failed.', false);
+                }
+            });
+        }
+
+        function leaveRoom() {
+            if (!confirm('Leave this chat room?')) return;
+            $.ajax({
+                url: '/api/chat/rooms/' + ROOM_ID + '/leave',
+                type: 'POST',
+                success: function() {
+                    window.location.href = '/chat/rooms';
+                },
+                error: function(xhr) {
+                    alert(xhr.responseJSON ? xhr.responseJSON.message : 'Failed to leave.');
+                }
+            });
+        }
+
+        function showInviteMsg(msg, isSuccess) {
+            var $el = $('#inviteMsg');
+            $el.text(msg).css('color', isSuccess ? 'var(--accent-green)' : 'var(--accent-red)').show();
+            setTimeout(function() { $el.fadeOut(); }, 3000);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

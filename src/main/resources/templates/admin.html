@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 페이지 - 협업 메신저</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <!-- 상단 네비게이션 바 -->
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand">관리자 페이지</span>
+            <div class="d-flex align-items-center">
+                <span class="text-white me-3" th:text="${displayName} + '님'">관리자님</span>
+                <a th:href="@{/chat/rooms}" class="btn btn-outline-light btn-sm me-2">채팅</a>
+                <a th:href="@{/friends}" class="btn btn-outline-light btn-sm me-2">친구</a>
+                <a th:href="@{/auth/logout}" class="btn btn-outline-light btn-sm">로그아웃</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-10 mx-auto">
+                <h4 class="mb-3">회원 관리</h4>
+
+                <!-- 사용자 목록 테이블 -->
+                <div class="table-responsive">
+                    <table class="table table-hover" id="userTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>아이디</th>
+                                <th>이름</th>
+                                <th>이메일</th>
+                                <th>권한</th>
+                                <th>상태</th>
+                                <th>가입일</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                            <!-- JS로 렌더링 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 권한 변경 모달 -->
+    <div class="modal fade" id="roleModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">권한 변경</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="roleUserId">
+                    <p>사용자: <strong id="roleUserName"></strong></p>
+                    <select class="form-select" id="newRole">
+                        <option value="MEMBER">MEMBER (일반)</option>
+                        <option value="MANAGER">MANAGER (매니저)</option>
+                        <option value="ADMIN">ADMIN (관리자)</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="changeRole()">변경</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
+    <script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script>
+    <script th:inline="javascript">
+        var currentUserId = [[${userId}]];
+
+        $(document).ready(function() {
+            loadUsers();
+        });
+
+        function loadUsers() {
+            $.get('/api/admin/users', function(response) {
+                var tbody = $('#userTableBody');
+                tbody.empty();
+                response.data.forEach(function(user) {
+                    var roleClass = user.role === 'ADMIN' ? 'bg-danger' :
+                                    user.role === 'MANAGER' ? 'bg-warning text-dark' : 'bg-secondary';
+                    var statusClass = user.status === 'ONLINE' ? 'bg-success' :
+                                     user.status === 'AWAY' ? 'bg-warning text-dark' : 'bg-secondary';
+
+                    var actions = '';
+                    if (user.id !== currentUserId) {
+                        actions = '<button class="btn btn-sm btn-outline-primary me-1" onclick="openRoleModal(' +
+                                  user.id + ', \'' + user.displayName + '\', \'' + user.role + '\')">권한</button>' +
+                                  '<button class="btn btn-sm btn-outline-danger" onclick="deleteUser(' +
+                                  user.id + ', \'' + user.displayName + '\')">삭제</button>';
+                    } else {
+                        actions = '<span class="text-muted">본인</span>';
+                    }
+
+                    tbody.append(
+                        '<tr>' +
+                        '<td>' + user.id + '</td>' +
+                        '<td>' + user.username + '</td>' +
+                        '<td>' + user.displayName + '</td>' +
+                        '<td>' + (user.email || '-') + '</td>' +
+                        '<td><span class="badge ' + roleClass + '">' + user.role + '</span></td>' +
+                        '<td><span class="badge ' + statusClass + '">' + user.status + '</span></td>' +
+                        '<td>' + (user.createdAt ? user.createdAt.substring(0, 10) : '-') + '</td>' +
+                        '<td>' + actions + '</td>' +
+                        '</tr>'
+                    );
+                });
+            });
+        }
+
+        function openRoleModal(userId, displayName, currentRole) {
+            $('#roleUserId').val(userId);
+            $('#roleUserName').text(displayName);
+            $('#newRole').val(currentRole);
+            new bootstrap.Modal($('#roleModal')[0]).show();
+        }
+
+        function changeRole() {
+            var userId = $('#roleUserId').val();
+            var newRole = $('#newRole').val();
+
+            $.ajax({
+                url: '/api/admin/users/' + userId + '/role',
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ role: newRole }),
+                success: function() {
+                    bootstrap.Modal.getInstance($('#roleModal')[0]).hide();
+                    loadUsers();
+                    alert('권한이 변경되었습니다.');
+                },
+                error: function(xhr) {
+                    alert('변경 실패: ' + (xhr.responseJSON ? xhr.responseJSON.message : '오류'));
+                }
+            });
+        }
+
+        function deleteUser(userId, displayName) {
+            if (!confirm(displayName + ' 사용자를 정말 삭제하시겠습니까?')) return;
+
+            $.ajax({
+                url: '/api/admin/users/' + userId,
+                type: 'DELETE',
+                success: function() {
+                    loadUsers();
+                    alert('사용자가 삭제되었습니다.');
+                },
+                error: function(xhr) {
+                    alert('삭제 실패: ' + (xhr.responseJSON ? xhr.responseJSON.message : '오류'));
+                }
+            });
+        }
+    </script>
+</body>
+</html>

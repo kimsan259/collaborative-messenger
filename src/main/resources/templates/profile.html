@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narsil - Profile</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body class="page-border">
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <nav class="narsil-nav d-flex justify-content-between align-items-center">
+        <a href="/chat/rooms" class="nav-brand"><span>Narsil</span></a>
+        <div class="d-flex align-items-center gap-8">
+            <a th:href="@{/profile}" class="nav-user" style="text-decoration:none;" th:text="${displayName}">User</a>
+            <a th:href="@{/chat/rooms}" class="nav-btn">Chat</a>
+            <a th:href="@{/friends}" class="nav-btn">Friends</a>
+            <a th:href="@{/auth/logout}" class="nav-btn">Logout</a>
+        </div>
+    </nav>
+
+    <div style="position:relative; z-index:1; max-width:600px; margin:0 auto; padding:32px 20px;">
+        <div class="mb-4">
+            <h2 class="section-title">Profile</h2>
+            <p class="section-sub">Manage your account settings</p>
+        </div>
+
+        <!-- 프로필 카드 -->
+        <div class="glass-card" style="padding:32px 28px; margin-bottom:20px;">
+            <!-- 아바타 + 기본 정보 -->
+            <div class="d-flex align-items-center gap-12 mb-4" style="padding-bottom:20px; border-bottom:1px solid var(--border-subtle);">
+                <div style="position:relative; cursor:pointer;" onclick="document.getElementById('imageInput').click()">
+                    <div th:if="${user.profileImage}" class="profile-avatar"
+                         style="overflow:hidden; padding:0;" id="avatarContainer">
+                        <img th:src="${user.profileImage}" alt="profile"
+                             style="width:100%; height:100%; object-fit:cover; border-radius:50%;" id="avatarImg">
+                    </div>
+                    <div th:unless="${user.profileImage}" class="profile-avatar" id="avatarContainer"
+                         th:text="${#strings.substring(user.displayName, 0, 1)}">U</div>
+                    <div style="position:absolute; bottom:-2px; right:-2px; width:22px; height:22px;
+                         background:var(--accent-purple); border-radius:50%; display:flex;
+                         align-items:center; justify-content:center; font-size:12px; color:white;
+                         border:2px solid var(--bg-primary);">+</div>
+                </div>
+                <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="uploadImage(this)">
+                <div>
+                    <div style="font-weight:700; font-size:18px;" th:text="${user.displayName}">User</div>
+                    <div style="color:var(--text-muted); font-size:13px;" th:text="'@' + ${user.username}">@user</div>
+                    <span class="badge-narsil badge-purple" style="margin-top:6px; display:inline-block;"
+                          th:text="${user.role}">MEMBER</span>
+                </div>
+            </div>
+            <div id="imageMsg" style="display:none; margin-bottom:12px; font-size:12px; text-align:center;"></div>
+
+            <!-- 프로필 수정 폼 -->
+            <div class="mb-3">
+                <label class="form-label" style="color:var(--text-secondary); font-size:13px;">Username</label>
+                <input type="text" class="narsil-input" th:value="${user.username}" disabled
+                       style="opacity:0.5; cursor:not-allowed;">
+                <small style="color:var(--text-muted); font-size:11px;">Username cannot be changed</small>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" style="color:var(--text-secondary); font-size:13px;">Display Name</label>
+                <input type="text" class="narsil-input" id="displayName" th:value="${user.displayName}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" style="color:var(--text-secondary); font-size:13px;">Email</label>
+                <input type="email" class="narsil-input" id="email" th:value="${user.email}">
+            </div>
+            <div class="d-flex justify-content-end">
+                <button class="btn-narsil btn-narsil-sm" onclick="updateProfile()">Save Changes</button>
+            </div>
+            <div id="profileMsg" style="display:none; margin-top:12px; font-size:13px; text-align:center;"></div>
+        </div>
+
+        <!-- 비밀번호 변경 -->
+        <div class="glass-card" style="padding:32px 28px;">
+            <h3 style="font-size:16px; font-weight:700; margin-bottom:20px;">Change Password</h3>
+            <div class="mb-3">
+                <label class="form-label" style="color:var(--text-secondary); font-size:13px;">Current Password</label>
+                <input type="password" class="narsil-input" id="currentPassword" placeholder="Enter current password">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" style="color:var(--text-secondary); font-size:13px;">New Password</label>
+                <input type="password" class="narsil-input" id="newPassword" placeholder="Enter new password">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" style="color:var(--text-secondary); font-size:13px;">Confirm New Password</label>
+                <input type="password" class="narsil-input" id="confirmPassword" placeholder="Confirm new password">
+            </div>
+            <div class="d-flex justify-content-end">
+                <button class="btn-narsil btn-narsil-sm" onclick="changePassword()">Change Password</button>
+            </div>
+            <div id="passwordMsg" style="display:none; margin-top:12px; font-size:13px; text-align:center;"></div>
+        </div>
+    </div>
+
+    <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
+    <script>
+        function showMsg(selector, message, isSuccess) {
+            var $el = $(selector);
+            $el.text(message)
+               .css('color', isSuccess ? 'var(--accent-green)' : 'var(--accent-red)')
+               .show();
+            setTimeout(function() { $el.fadeOut(); }, 3000);
+        }
+
+        function uploadImage(input) {
+            if (!input.files || !input.files[0]) return;
+            var formData = new FormData();
+            formData.append('file', input.files[0]);
+
+            $.ajax({
+                url: '/api/users/profile-image',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(r) {
+                    var url = r.data.profileImage;
+                    $('#avatarContainer').html(
+                        '<img src="' + url + '" alt="profile" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">'
+                    );
+                    showMsg('#imageMsg', 'Profile image updated!', true);
+                },
+                error: function(xhr) {
+                    showMsg('#imageMsg', xhr.responseJSON ? xhr.responseJSON.message : 'Upload failed.', false);
+                }
+            });
+        }
+
+        function updateProfile() {
+            var displayName = $('#displayName').val().trim();
+            var email = $('#email').val().trim();
+            if (!displayName) { showMsg('#profileMsg', 'Display name is required.', false); return; }
+
+            $.ajax({
+                url: '/api/users/profile',
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ displayName: displayName, email: email }),
+                success: function(r) {
+                    showMsg('#profileMsg', 'Profile updated successfully!', true);
+                    $('.nav-user').text(displayName);
+                },
+                error: function(xhr) {
+                    showMsg('#profileMsg', xhr.responseJSON ? xhr.responseJSON.message : 'Update failed.', false);
+                }
+            });
+        }
+
+        function changePassword() {
+            var current = $('#currentPassword').val();
+            var newPw = $('#newPassword').val();
+            var confirm = $('#confirmPassword').val();
+
+            if (!current || !newPw) { showMsg('#passwordMsg', 'Please fill in all fields.', false); return; }
+            if (newPw.length < 4) { showMsg('#passwordMsg', 'Password must be at least 4 characters.', false); return; }
+            if (newPw !== confirm) { showMsg('#passwordMsg', 'New passwords do not match.', false); return; }
+
+            $.ajax({
+                url: '/api/users/password',
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ currentPassword: current, newPassword: newPw }),
+                success: function() {
+                    showMsg('#passwordMsg', 'Password changed successfully!', true);
+                    $('#currentPassword, #newPassword, #confirmPassword').val('');
+                },
+                error: function(xhr) {
+                    showMsg('#passwordMsg', xhr.responseJSON ? xhr.responseJSON.message : 'Password change failed.', false);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

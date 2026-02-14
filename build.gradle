@@ -1,0 +1,71 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.0.2'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.messenger'
+version = '0.0.1-SNAPSHOT'
+description = '업무 자동 정리 협업 메신저 - Collaborative Messenger with Auto Daily Work Report'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// ===== 웹 =====
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'       // REST API (Spring MVC)
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'    // WebSocket + STOMP (실시간 채팅)
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'    // 서버 사이드 템플릿 엔진 (프론트엔드)
+	implementation 'org.springframework.boot:spring-boot-starter-validation'   // DTO 유효성 검증 (@Valid, @NotBlank 등)
+
+	// ===== 보안 =====
+	implementation 'org.springframework.boot:spring-boot-starter-security'     // 인증/인가 (세션 기반)
+	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'     // Thymeleaf에서 Security 태그 사용
+
+	// ===== 데이터베이스 =====
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'     // JPA (ORM)
+	runtimeOnly 'com.mysql:mysql-connector-j'                                  // MySQL 드라이버
+
+	// ===== Redis =====
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'   // Redis 연동
+	implementation 'org.springframework.session:spring-session-data-redis'     // 세션을 Redis에 저장
+
+	// ===== Kafka =====
+	implementation 'org.springframework.kafka:spring-kafka'                    // Kafka 메시징 (채팅 메시지 비동기 처리)
+
+	// ===== AOP =====
+	implementation 'org.aspectj:aspectjweaver'                                 // AOP (로깅, 샤딩 라우팅)
+
+	// ===== WebSocket JS 라이브러리 (WebJars - jar로 관리되는 프론트엔드 라이브러리) =====
+	implementation 'org.webjars:sockjs-client:1.5.1'                          // SockJS (WebSocket 폴백)
+	implementation 'org.webjars:stomp-websocket:2.3.4'                        // STOMP 프로토콜 클라이언트
+	implementation 'org.webjars:jquery:3.7.1'                                 // jQuery (DOM 조작)
+	implementation 'org.webjars:bootstrap:5.3.2'                              // Bootstrap (UI 프레임워크)
+
+	// ===== 개발 편의 =====
+	compileOnly 'org.projectlombok:lombok'                                     // 보일러플레이트 코드 제거 (@Getter, @Builder 등)
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// ===== 테스트 =====
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'     // JUnit5 + MockMvc + Mockito
+	testImplementation 'org.springframework.kafka:spring-kafka-test'           // Kafka 내장 브로커 테스트
+	testImplementation 'org.springframework.security:spring-security-test'     // Security 테스트 유틸
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

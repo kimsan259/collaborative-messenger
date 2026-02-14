@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narsil - Friends</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body class="page-border">
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- 네비게이션 -->
+    <nav class="narsil-nav d-flex justify-content-between align-items-center">
+        <a href="/chat/rooms" class="nav-brand"><span>Narsil</span></a>
+        <div class="d-flex align-items-center gap-8">
+            <a th:href="@{/profile}" class="nav-user" style="text-decoration:none;" th:text="${displayName}">User</a>
+            <a th:href="@{/chat/rooms}" class="nav-btn">Chat</a>
+            <a th:href="@{/reports}" class="nav-btn">Reports</a>
+            <a th:href="@{/auth/logout}" class="nav-btn">Logout</a>
+        </div>
+    </nav>
+
+    <div style="position:relative; z-index:1; max-width:700px; margin:0 auto; padding:32px 20px;">
+        <div class="mb-4">
+            <h2 class="section-title">Friends</h2>
+            <p class="section-sub">Manage your connections</p>
+        </div>
+
+        <!-- 탭 -->
+        <div class="narsil-tabs mb-4" id="tabNav">
+            <button class="narsil-tab active" onclick="switchTab('friends', this)">Friends</button>
+            <button class="narsil-tab" onclick="switchTab('received', this)" id="receivedTabBtn">
+                Received
+                <span class="tab-badge" id="receivedCount" style="display:none">0</span>
+            </button>
+            <button class="narsil-tab" onclick="switchTab('sent', this)">Sent</button>
+            <button class="narsil-tab" onclick="switchTab('search', this)">Add Friend</button>
+        </div>
+
+        <!-- 친구 목록 -->
+        <div id="friendsPanel" class="glass-card" style="overflow:hidden;">
+            <div id="friendsList"></div>
+            <div id="noFriends" class="empty-state" style="display:none">
+                <p>No friends yet.</p>
+                <p>Search for users to add friends!</p>
+            </div>
+        </div>
+
+        <!-- 받은 요청 -->
+        <div id="receivedPanel" class="glass-card" style="overflow:hidden; display:none;">
+            <div id="receivedList"></div>
+            <div id="noReceived" class="empty-state" style="display:none">
+                <p>No pending requests.</p>
+            </div>
+        </div>
+
+        <!-- 보낸 요청 -->
+        <div id="sentPanel" class="glass-card" style="overflow:hidden; display:none;">
+            <div id="sentList"></div>
+            <div id="noSent" class="empty-state" style="display:none">
+                <p>No sent requests.</p>
+            </div>
+        </div>
+
+        <!-- 검색 -->
+        <div id="searchPanel" style="display:none;">
+            <div class="d-flex gap-8 mb-3">
+                <input type="text" class="narsil-input" id="searchKeyword"
+                       placeholder="Search by username or display name">
+                <button class="btn-narsil btn-narsil-sm" onclick="searchUsers()" style="white-space:nowrap;">Search</button>
+            </div>
+            <div class="glass-card" style="overflow:hidden;">
+                <div id="searchResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
+    <script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script>
+    <script th:inline="javascript">
+        var currentUserId = [[${userId}]];
+
+        $(document).ready(function() {
+            loadFriends();
+            loadReceivedRequests();
+            loadSentRequests();
+            $('#searchKeyword').on('keypress', function(e) { if (e.which === 13) searchUsers(); });
+            setInterval(loadFriends, 10000);
+        });
+
+        function switchTab(tab, btn) {
+            $('.narsil-tab').removeClass('active');
+            $(btn).addClass('active');
+            $('#friendsPanel, #receivedPanel, #sentPanel, #searchPanel').hide();
+            $('#' + tab + 'Panel').show();
+        }
+
+        function avatarHtml(profileImage, name) {
+            if (profileImage) {
+                return '<div class="member-avatar" style="overflow:hidden; padding:0;">' +
+                       '<img src="' + profileImage + '" style="width:100%; height:100%; object-fit:cover; border-radius:50%;"></div>';
+            }
+            var initial = name ? name.charAt(0) : '?';
+            return '<div class="member-avatar">' + escapeHtml(initial) + '</div>';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+
+        function renderItem(name, username, rightHtml, profileImage, online) {
+            var statusHtml = online === undefined ? '' :
+                (online
+                    ? '<span class="badge-narsil badge-green" style="margin-left:8px;">Online</span>'
+                    : '<span class="badge-narsil badge-purple" style="margin-left:8px;">Offline</span>');
+            return '<div class="narsil-list-item">' +
+                   '  <div class="d-flex align-items-center gap-8">' +
+                   avatarHtml(profileImage, name) +
+                   '    <div><span style="font-weight:600;">' + escapeHtml(name) + '</span>' +
+                   '    <span style="color:var(--text-muted); font-size:12px; margin-left:8px;">@' + escapeHtml(username) + '</span>' +
+                   statusHtml + '</div>' +
+                   '  </div>' +
+                   '  <div>' + rightHtml + '</div></div>';
+        }
+
+        function loadFriends() {
+            $.get('/api/friends', function(r) {
+                var list = $('#friendsList'); list.empty();
+                if (r.data.length === 0) { $('#noFriends').show(); return; }
+                $('#noFriends').hide();
+                r.data.forEach(function(f) {
+                    list.append(renderItem(f.friendDisplayName, f.friendUsername,
+                        '<button class="btn-narsil btn-narsil-sm" style="margin-right:6px;" onclick="viewProfile(' + f.friendId + ')">Profile</button>' +
+                        '<button class="btn-narsil btn-narsil-sm" style="margin-right:6px;" onclick="startDm(' + f.friendId + ')">Message</button>' +
+                        '<button class="btn-ghost btn-ghost-danger" onclick="removeFriend(' + f.friendshipId + ')">Remove</button>',
+                        f.friendProfileImage,
+                        f.online));
+                });
+            });
+        }
+
+        function loadReceivedRequests() {
+            $.get('/api/friends/requests/received', function(r) {
+                var list = $('#receivedList'); list.empty();
+                if (r.data.length === 0) { $('#noReceived').show(); $('#receivedCount').hide(); return; }
+                $('#noReceived').hide(); $('#receivedCount').text(r.data.length).show();
+                r.data.forEach(function(f) {
+                    list.append(renderItem(f.friendDisplayName, f.friendUsername,
+                        '<button class="btn-ghost btn-ghost-success" style="margin-right:6px;" onclick="acceptRequest(' + f.friendshipId + ')">Accept</button>' +
+                        '<button class="btn-ghost" onclick="rejectRequest(' + f.friendshipId + ')">Decline</button>',
+                        f.friendProfileImage));
+                });
+            });
+        }
+
+        function loadSentRequests() {
+            $.get('/api/friends/requests/sent', function(r) {
+                var list = $('#sentList'); list.empty();
+                if (r.data.length === 0) { $('#noSent').show(); return; }
+                $('#noSent').hide();
+                r.data.forEach(function(f) {
+                    list.append(renderItem(f.friendDisplayName, f.friendUsername,
+                        '<span class="badge-narsil badge-amber">Pending</span>',
+                        f.friendProfileImage));
+                });
+            });
+        }
+
+        function searchUsers() {
+            var keyword = $('#searchKeyword').val().trim();
+            if (!keyword) return;
+            $.get('/api/friends/search?keyword=' + encodeURIComponent(keyword), function(r) {
+                var list = $('#searchResults'); list.empty();
+                if (r.data.length === 0) {
+                    list.append('<div class="empty-state" style="padding:24px;"><p>No results found.</p></div>');
+                    return;
+                }
+                r.data.forEach(function(f) {
+                    var btn = '';
+                    if (f.status === 'ACCEPTED') btn = '<span class="badge-narsil badge-green">Friend</span>';
+                    else if (f.status === 'PENDING' && f.sentByMe) btn = '<span class="badge-narsil badge-amber">Requested</span>';
+                    else if (f.status === 'PENDING' && !f.sentByMe) btn = '<button class="btn-ghost btn-ghost-success" onclick="acceptRequest(' + f.friendshipId + ')">Accept</button>';
+                    else btn = '<button class="btn-purple" onclick="sendRequest(' + f.friendId + ')">Add Friend</button>';
+                    list.append(renderItem(f.friendDisplayName, f.friendUsername, btn, f.friendProfileImage));
+                });
+            });
+        }
+
+        function sendRequest(userId) {
+            $.post('/api/friends/request/' + userId, function() {
+                searchUsers(); loadSentRequests();
+            }).fail(function(xhr) { alert(xhr.responseJSON ? xhr.responseJSON.message : 'Error'); });
+        }
+
+        function acceptRequest(friendshipId) {
+            $.post('/api/friends/accept/' + friendshipId, function() {
+                loadFriends(); loadReceivedRequests(); searchUsers();
+            }).fail(function(xhr) { alert(xhr.responseJSON ? xhr.responseJSON.message : 'Error'); });
+        }
+
+        function rejectRequest(friendshipId) {
+            $.post('/api/friends/reject/' + friendshipId, function() {
+                loadReceivedRequests();
+            }).fail(function(xhr) { alert(xhr.responseJSON ? xhr.responseJSON.message : 'Error'); });
+        }
+
+        function startDm(targetUserId) {
+            $.ajax({
+                url: '/api/chat/dm/' + targetUserId,
+                type: 'POST',
+                success: function(r) {
+                    window.location.href = '/chat/room/' + r.data.id;
+                },
+                error: function(xhr) {
+                    alert(xhr.responseJSON ? xhr.responseJSON.message : 'Failed to start DM');
+                }
+            });
+        }
+
+        function removeFriend(friendshipId) {
+            if (!confirm('Remove this friend?')) return;
+            $.ajax({ url: '/api/friends/' + friendshipId, type: 'DELETE',
+                success: function() { loadFriends(); },
+                error: function(xhr) { alert(xhr.responseJSON ? xhr.responseJSON.message : 'Error'); }
+            });
+        }
+
+        function viewProfile(userId) {
+            $.get('/api/users/' + userId, function(r) {
+                var u = r.data;
+                var imgHtml;
+                if (u.profileImage) {
+                    imgHtml = '<div class="profile-avatar" style="overflow:hidden; padding:0; margin:0 auto 16px;">' +
+                              '<img src="' + u.profileImage + '" style="width:100%; height:100%; object-fit:cover; border-radius:50%;"></div>';
+                } else {
+                    var initial = u.displayName ? u.displayName.charAt(0) : '?';
+                    imgHtml = '<div class="profile-avatar" style="margin:0 auto 16px;">' + escapeHtml(initial) + '</div>';
+                }
+                $('#profileModalBody').html(
+                    '<div style="text-align:center; padding:24px 20px;">' +
+                    imgHtml +
+                    '<div style="font-weight:700; font-size:18px; margin-bottom:4px;">' + escapeHtml(u.displayName) + '</div>' +
+                    '<div style="color:var(--text-muted); font-size:13px; margin-bottom:8px;">@' + escapeHtml(u.username) + '</div>' +
+                    (u.email ? '<div style="color:var(--text-secondary); font-size:13px;">' + escapeHtml(u.email) + '</div>' : '') +
+                    '<span class="badge-narsil badge-purple" style="margin-top:12px; display:inline-block;">' + escapeHtml(u.role) + '</span>' +
+                    '</div>'
+                );
+                var modal = new bootstrap.Modal(document.getElementById('profileModal'));
+                modal.show();
+            }).fail(function(xhr) {
+                alert(xhr.responseJSON ? xhr.responseJSON.message : 'Failed to load profile');
+            });
+        }
+    </script>
+
+    <!-- 프로필 모달 -->
+    <div class="modal fade" id="profileModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="background:var(--bg-secondary); border:1px solid var(--border-subtle); border-radius:16px;">
+                <div class="modal-header" style="border-bottom:1px solid var(--border-subtle); padding:16px 20px;">
+                    <h5 class="modal-title" style="font-size:15px; font-weight:700;">Profile</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="profileModalBody" style="padding:0;"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

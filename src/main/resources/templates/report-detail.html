@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narsil - Report Detail</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body class="page-border">
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- 네비게이션 -->
+    <nav class="narsil-nav d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-12">
+            <a th:href="@{/reports}" class="nav-btn">&larr; Reports</a>
+            <span style="font-weight:600; font-size:15px;">Report Detail</span>
+        </div>
+        <a href="/chat/rooms" class="nav-brand"><span>Narsil</span></a>
+    </nav>
+
+    <div class="report-container" style="position:relative; z-index:1; margin-top:16px;">
+        <!-- 헤더 카드 -->
+        <div class="report-card" style="border-left:3px solid var(--accent-purple);">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <h3 style="font-size:18px; font-weight:700;" th:text="${report.reportDate} + ' Report'">Report</h3>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+                        <span th:text="${report.totalMessageCount} + ' messages'">0</span>
+                        &middot;
+                        <span th:text="${report.activeRoomCount} + ' active rooms'">0</span>
+                    </div>
+                </div>
+                <div>
+                    <span th:if="${report.status.name() == 'AUTO_GENERATED'}"
+                          class="report-status auto-generated">Auto</span>
+                    <span th:if="${report.status.name() == 'EDITED'}"
+                          class="report-status edited">Edited</span>
+                    <span th:if="${report.status.name() == 'CONFIRMED'}"
+                          class="report-status confirmed">Confirmed</span>
+                </div>
+            </div>
+
+            <!-- 요약 편집 -->
+            <div class="mb-3">
+                <label style="color:var(--text-secondary); font-size:13px; font-weight:600; margin-bottom:8px; display:block;">Summary</label>
+                <textarea id="summaryInput" class="narsil-input" rows="3"
+                          th:text="${report.summary}"
+                          placeholder="Edit the summary..."></textarea>
+            </div>
+
+            <!-- 액션 버튼 -->
+            <div class="d-flex gap-8">
+                <button class="btn-narsil btn-narsil-sm" onclick="updateSummary()">Save Summary</button>
+                <button class="btn-ghost btn-ghost-success" onclick="confirmReport()"
+                        th:disabled="${report.status.name() == 'CONFIRMED'}">
+                    Confirm
+                </button>
+            </div>
+        </div>
+
+        <!-- 업무 항목 -->
+        <h4 class="section-title" style="font-size:16px; margin-top:28px; margin-bottom:16px;">Work Items</h4>
+
+        <div th:if="${#lists.isEmpty(report.items)}" class="glass-card">
+            <div class="empty-state" style="padding:32px;">
+                <p>No work items analyzed.</p>
+            </div>
+        </div>
+
+        <div th:each="item : ${report.items}" class="report-item">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="item-title" th:text="${item.title}">Title</div>
+                <div>
+                    <span th:if="${item.category.name() == 'DEVELOPMENT'}"
+                          class="category-badge development">Dev</span>
+                    <span th:if="${item.category.name() == 'MEETING'}"
+                          class="category-badge meeting">Meeting</span>
+                    <span th:if="${item.category.name() == 'REVIEW'}"
+                          class="category-badge review">Review</span>
+                    <span th:if="${item.category.name() == 'OTHER'}"
+                          class="category-badge other">Other</span>
+                </div>
+            </div>
+            <div class="item-description mt-2" th:text="${item.description}">Description</div>
+            <div class="mt-2" style="font-size:12px; color:var(--text-muted);">
+                Room: <span th:text="${item.chatRoomName}">General</span>
+                &middot;
+                <span th:text="${item.relatedMessageCount} + ' messages'">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        var REPORT_ID = /*[[${report.id}]]*/ 0;
+    </script>
+
+    <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
+    <script>
+        function updateSummary() {
+            var summary = document.getElementById('summaryInput').value;
+            $.ajax({
+                url: '/api/reports/' + REPORT_ID,
+                method: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ summary: summary }),
+                success: function() {
+                    window.location.reload();
+                },
+                error: function() { alert('Failed to save.'); }
+            });
+        }
+
+        function confirmReport() {
+            if (!confirm('Confirm this report?')) return;
+            $.ajax({
+                url: '/api/reports/' + REPORT_ID + '/confirm',
+                method: 'POST',
+                success: function() {
+                    window.location.reload();
+                },
+                error: function() { alert('Failed to confirm.'); }
+            });
+        }
+    </script>
+</body>
+</html>

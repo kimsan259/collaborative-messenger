@@ -1,0 +1,198 @@
+# ============================================================
+# Collaborative Messenger - Docker 인프라 구성
+# ============================================================
+# 이 파일 하나로 프로젝트에 필요한 모든 인프라를 한번에 실행합니다.
+#
+# 실행 방법: docker-compose up -d
+# 중지 방법: docker-compose down
+# 로그 확인: docker-compose logs -f [서비스명]
+# 전체 삭제: docker-compose down -v  (★ 데이터도 삭제됨, 주의!)
+#
+# 구성:
+#   - MySQL Shard 0 (포트 3307): 기본 DB + 짝수 채팅방 메시지
+#   - MySQL Shard 1 (포트 3308): 홀수 채팅방 메시지
+#   - Redis Master  (포트 6379): 세션 + 캐시 + 접속상태
+#   - Redis Replica 1 (포트 6380): 읽기 전용 복제본
+#   - Redis Replica 2 (포트 6381): 읽기 전용 복제본
+#   - Zookeeper     (포트 2181): Kafka 코디네이터
+#   - Kafka         (포트 9092): 메시지 브로커
+# ============================================================
+
+version: '3.8'
+
+services:
+
+  # ============================================================
+  # MySQL Shard 0 - 기본 데이터베이스
+  # ============================================================
+  # 역할: 모든 테이블(users, teams, chat_rooms 등)을 저장하고,
+  #       짝수 chatRoomId의 채팅 메시지도 여기에 저장됩니다.
+  # 접속: mysql -h localhost -P 3307 -u messenger -p messenger1234
+  # ============================================================
+  mysql-shard-0:
+    image: mysql:8.0
+    container_name: messenger-mysql-shard-0
+    ports:
+      - "3307:3306"                    # 호스트 3307 → 컨테이너 3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234    # root 계정 비밀번호
+      MYSQL_DATABASE: messenger_shard_0  # 자동 생성될 데이터베이스 이름
+      MYSQL_USER: messenger            # 애플리케이션이 사용할 계정
+      MYSQL_PASSWORD: messenger1234    # 애플리케이션 계정 비밀번호
+    volumes:
+      - mysql-shard-0-data:/var/lib/mysql                                  # 데이터 영속화
+      - ./docker/mysql/init-shard-0.sql:/docker-entrypoint-initdb.d/init.sql  # 초기 테이블 생성 SQL
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # MySQL Shard 1 - 채팅 메시지 전용 샤드
+  # ============================================================
+  # 역할: 홀수 chatRoomId의 채팅 메시지만 저장합니다.
+  #       chat_messages 테이블만 존재합니다.
+  # 접속: mysql -h localhost -P 3308 -u messenger -p messenger1234
+  # ============================================================
+  mysql-shard-1:
+    image: mysql:8.0
+    container_name: messenger-mysql-shard-1
+    ports:
+      - "3308:3306"                    # 호스트 3308 → 컨테이너 3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_DATABASE: messenger_shard_1
+      MYSQL_USER: messenger
+      MYSQL_PASSWORD: messenger1234
+    volumes:
+      - mysql-shard-1-data:/var/lib/mysql
+      - ./docker/mysql/init-shard-1.sql:/docker-entrypoint-initdb.d/init.sql
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Redis Master - 메인 Redis 서버
+  # ============================================================
+  # 역할: 사용자 세션 저장, 데이터 캐싱, 접속 상태 관리
+  # 접속: redis-cli -h localhost -p 6379 -a redis1234
+  # ============================================================
+  redis-master:
+    image: redis:7-alpine
+    container_name: messenger-redis-master
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --requirepass redis1234
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis1234", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Redis Replica 1 - 읽기 전용 복제본
+  # ============================================================
+  # 역할: Master의 데이터를 복제하여 읽기 부하를 분산합니다.
+  #       Master가 죽으면 이 서버가 승격될 수 있습니다.
+  # ============================================================
+  redis-replica-1:
+    image: redis:7-alpine
+    container_name: messenger-redis-replica-1
+    ports:
+      - "6380:6379"
+    command: >
+      redis-server
+      --replicaof redis-master 6379
+      --masterauth redis1234
+      --requirepass redis1234
+    depends_on:
+      redis-master:
+        condition: service_healthy
+
+  # ============================================================
+  # Redis Replica 2 - 읽기 전용 복제본
+  # ============================================================
+  redis-replica-2:
+    image: redis:7-alpine
+    container_name: messenger-redis-replica-2
+    ports:
+      - "6381:6379"
+    command: >
+      redis-server
+      --replicaof redis-master 6379
+      --masterauth redis1234
+      --requirepass redis1234
+    depends_on:
+      redis-master:
+        condition: service_healthy
+
+  # ============================================================
+  # Zookeeper - Kafka 코디네이터
+  # ============================================================
+  # 역할: Kafka 브로커들의 메타데이터를 관리하고 리더 선출을 담당합니다.
+  #       Kafka가 동작하기 위해 반드시 먼저 실행되어야 합니다.
+  # ============================================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: messenger-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Kafka - 메시지 브로커
+  # ============================================================
+  # 역할: 채팅 메시지를 비동기로 처리하는 메시지 큐입니다.
+  #       WebSocket으로 들어온 메시지 → Kafka 토픽에 발행 → Consumer가 소비하여 DB 저장
+  #
+  # 왜 Kafka를 쓰는가?
+  #   1. 메시지 수신(WebSocket)과 저장(DB)을 분리하여 장애 전파 방지
+  #   2. 파티션 키(chatRoomId)로 같은 채팅방의 메시지 순서를 보장
+  #   3. 대용량 트래픽에서도 안정적으로 메시지 처리 가능
+  # ============================================================
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: messenger-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1     # 개발 환경이므로 복제 1개
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"       # 토픽 자동 생성 금지 (코드에서 명시적으로 생성)
+      KAFKA_LOG_RETENTION_HOURS: 24                  # 메시지 보관 기간: 24시간
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+
+# ============================================================
+# 데이터 볼륨 - 컨테이너를 삭제해도 데이터는 보존됩니다
+# ============================================================
+volumes:
+  mysql-shard-0-data:
+    name: messenger-mysql-shard-0-data
+  mysql-shard-1-data:
+    name: messenger-mysql-shard-1-data
