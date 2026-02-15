@@ -68,7 +68,13 @@ public class ChatPresenceService {
      * @return true면 온라인, false면 오프라인
      */
     public boolean isOnline(Long userId) {
-        return redisCacheService.isSetMember(ONLINE_USERS_KEY, "user:" + userId);
+        try {
+            return redisCacheService.isSetMember(ONLINE_USERS_KEY, "user:" + userId);
+        } catch (Exception e) {
+            // Redis 오류가 친구 목록 API 전체 실패로 번지지 않도록 오프라인으로 처리
+            log.warn("[presence] online check failed. userId={}, reason={}", userId, e.getMessage());
+            return false;
+        }
     }
 
     /**

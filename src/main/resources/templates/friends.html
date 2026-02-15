@@ -144,6 +144,8 @@
                         f.friendProfileImage,
                         f.online));
                 });
+            }).fail(function(xhr) {
+                console.error('[friends] load friends failed:', xhr.status, xhr.responseText);
             });
         }
 
@@ -158,6 +160,8 @@
                         '<button class="btn-ghost" onclick="rejectRequest(' + f.friendshipId + ')">Decline</button>',
                         f.friendProfileImage));
                 });
+            }).fail(function(xhr) {
+                console.error('[friends] load received requests failed:', xhr.status, xhr.responseText);
             });
         }
 
@@ -171,6 +175,8 @@
                         '<span class="badge-narsil badge-amber">Pending</span>',
                         f.friendProfileImage));
                 });
+            }).fail(function(xhr) {
+                console.error('[friends] load sent requests failed:', xhr.status, xhr.responseText);
             });
         }
 
