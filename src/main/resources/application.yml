@@ -38,7 +38,7 @@
     suffix: .html
 
   session:
-    store-type: redis
+    store-type: ${SPRING_SESSION_STORE_TYPE:none}
     timeout: 30m
 
 datasource:
