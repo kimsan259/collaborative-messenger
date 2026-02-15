@@ -147,6 +147,7 @@
                 r.data.forEach(function(f) {
                     list.append(renderItem(f.friendDisplayName, f.friendUsername,
                         '<button class="btn-narsil btn-narsil-sm" style="margin-right:6px;" onclick="viewProfile(' + f.friendId + ')">Profile</button>' +
+                        '<button class="btn-ghost btn-ghost-success" style="margin-right:6px;" onclick="openQuickSend(' + f.friendId + ', \'' + escapeHtml(f.friendDisplayName).replace(/'/g, \"&#39;\") + '\')">Quick Send</button>' +
                         '<button class="btn-narsil btn-narsil-sm" style="margin-right:6px;" onclick="startDm(' + f.friendId + ')">Message</button>' +
                         '<button class="btn-ghost btn-ghost-danger" onclick="removeFriend(' + f.friendshipId + ')">Remove</button>',
                         f.friendProfileImage));
@@ -238,6 +239,77 @@
             });
         }
 
+        var quickTargetUserId = null;
+        function openQuickSend(targetUserId, displayName) {
+            quickTargetUserId = targetUserId;
+            $('#quickSendTitle').text('Quick Send to ' + displayName);
+            $('#quickMessage').val('');
+            $('#quickFile').val('');
+            var modal = new bootstrap.Modal(document.getElementById('quickSendModal'));
+            modal.show();
+        }
+
+        function sendQuickMessage() {
+            if (!quickTargetUserId) return;
+            var text = $('#quickMessage').val().trim();
+            var fileInput = document.getElementById('quickFile');
+            var file = fileInput.files && fileInput.files.length > 0 ? fileInput.files[0] : null;
+
+            if (!text && !file) {
+                alert('메시지 또는 파일 중 하나는 입력하세요.');
+                return;
+            }
+
+            $.ajax({
+                url: '/api/chat/dm/' + quickTargetUserId,
+                type: 'POST',
+                success: function(dmRes) {
+                    var roomId = dmRes.data.id;
+                    if (file) {
+                        var formData = new FormData();
+                        formData.append('file', file);
+                        if (text) formData.append('content', text);
+                        $.ajax({
+                            url: '/api/chat/rooms/' + roomId + '/messages/file',
+                            type: 'POST',
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            success: function() {
+                                alert('파일 메시지를 전송했습니다.');
+                                bootstrap.Modal.getInstance(document.getElementById('quickSendModal')).hide();
+                            },
+                            error: function(xhr) {
+                                alert(xhr.responseJSON ? xhr.responseJSON.message : '파일 전송 실패');
+                            }
+                        });
+                        return;
+                    }
+
+                    $.ajax({
+                        url: '/api/chat/rooms/' + roomId + '/messages',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            chatRoomId: roomId,
+                            content: text,
+                            messageType: 'TEXT'
+                        }),
+                        success: function() {
+                            alert('메시지를 전송했습니다.');
+                            bootstrap.Modal.getInstance(document.getElementById('quickSendModal')).hide();
+                        },
+                        error: function(xhr) {
+                            alert(xhr.responseJSON ? xhr.responseJSON.message : '메시지 전송 실패');
+                        }
+                    });
+                },
+                error: function(xhr) {
+                    alert(xhr.responseJSON ? xhr.responseJSON.message : 'DM 생성 실패');
+                }
+            });
+        }
+
         function removeFriend(friendshipId) {
             if (!confirm('Remove this friend?')) return;
             $.ajax({ url: '/api/friends/' + friendshipId, type: 'DELETE',
@@ -283,6 +355,27 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="profileModalBody" style="padding:0;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="quickSendModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background:var(--bg-secondary); border:1px solid var(--border-subtle); border-radius:16px;">
+                <div class="modal-header" style="border-bottom:1px solid var(--border-subtle); padding:16px 20px;">
+                    <h5 class="modal-title" id="quickSendTitle" style="font-size:15px; font-weight:700;">Quick Send</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="padding:16px 20px;">
+                    <textarea id="quickMessage" class="narsil-input" style="min-height:110px;" placeholder="메시지를 입력하세요"></textarea>
+                    <div style="height:10px;"></div>
+                    <input id="quickFile" type="file" class="form-control" style="background:rgba(255,255,255,0.06); color:var(--text-primary); border:1px solid var(--border-subtle);">
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:8px;">텍스트 없이 파일만 전송해도 됩니다.</div>
+                </div>
+                <div class="modal-footer" style="border-top:1px solid var(--border-subtle); padding:12px 20px;">
+                    <button type="button" class="btn-ghost" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn-narsil btn-narsil-sm" onclick="sendQuickMessage()">전송</button>
+                </div>
             </div>
         </div>
     </div>

@@ -4,14 +4,23 @@ import com.messenger.worklog.dto.WorklogCommitItem;
 import com.messenger.worklog.dto.WorklogSummaryResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.time.*;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,39 +42,78 @@ public class WorklogService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     public WorklogSummaryResponse generateTodaySummary(String authorOrNull) {
-        String author = (authorOrNull == null || authorOrNull.isBlank()) ? defaultAuthor : authorOrNull.trim();
+        String requestedAuthor = (authorOrNull == null || authorOrNull.isBlank())
+                ? defaultAuthor
+                : authorOrNull.trim();
+
         ZoneId zone = ZoneId.of("Asia/Seoul");
         LocalDate today = LocalDate.now(zone);
         OffsetDateTime since = today.atStartOfDay(zone).toOffsetDateTime();
         OffsetDateTime until = OffsetDateTime.now(zone);
 
-        List<Map<String, Object>> commits = fetchCommits(author, since, until);
-        return buildSummary(author, today, commits);
+        List<Map<String, Object>> commits = fetchCommitsByAuthor(requestedAuthor, since, until);
+        boolean fallbackToRepoWide = false;
+
+        if (commits.isEmpty()) {
+            List<Map<String, Object>> repoCommits = fetchCommitsWithoutAuthor(since, until);
+            commits = filterByPossibleAuthor(repoCommits, requestedAuthor);
+
+            if (commits.isEmpty()) {
+                commits = repoCommits;
+                fallbackToRepoWide = !commits.isEmpty();
+            }
+        }
+
+        return buildSummary(requestedAuthor, today, commits, fallbackToRepoWide);
     }
 
-    private List<Map<String, Object>> fetchCommits(String author, OffsetDateTime since, OffsetDateTime until) {
+    private List<Map<String, Object>> fetchCommitsByAuthor(String author, OffsetDateTime since, OffsetDateTime until) {
         String url = UriComponentsBuilder
                 .fromUriString("https://api.github.com/repos/{owner}/{repo}/commits")
                 .queryParam("author", author)
                 .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                 .queryParam("until", until.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-                .queryParam("per_page", 50)
+                .queryParam("per_page", 100)
                 .buildAndExpand(owner, repo)
                 .toUriString();
+        return fetchCommitList(url);
+    }
 
-        HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
-        ResponseEntity<List> response = restTemplate.exchange(url, HttpMethod.GET, request, List.class);
-        if (response.getBody() == null) {
+    private List<Map<String, Object>> fetchCommitsWithoutAuthor(OffsetDateTime since, OffsetDateTime until) {
+        String url = UriComponentsBuilder
+                .fromUriString("https://api.github.com/repos/{owner}/{repo}/commits")
+                .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                .queryParam("until", until.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                .queryParam("per_page", 100)
+                .buildAndExpand(owner, repo)
+                .toUriString();
+        return fetchCommitList(url);
+    }
+
+    private List<Map<String, Object>> fetchCommitList(String url) {
+        try {
+            HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
+            ResponseEntity<List> response = restTemplate.exchange(url, HttpMethod.GET, request, List.class);
+            if (response.getBody() == null) {
+                return List.of();
+            }
+            return response.getBody();
+        } catch (Exception e) {
+            log.warn("[worklog] failed to fetch commits. url={}, reason={}", url, e.getMessage());
             return List.of();
         }
-        return response.getBody();
     }
 
     private Map<String, Object> fetchCommitDetail(String sha) {
         String url = "https://api.github.com/repos/" + owner + "/" + repo + "/commits/" + sha;
-        HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
-        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, request, Map.class);
-        return response.getBody() == null ? Map.of() : response.getBody();
+        try {
+            HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, request, Map.class);
+            return response.getBody() == null ? Map.of() : response.getBody();
+        } catch (Exception e) {
+            log.warn("[worklog] failed to fetch commit detail. sha={}, reason={}", sha, e.getMessage());
+            return Map.of();
+        }
     }
 
     private HttpHeaders defaultHeaders() {
@@ -79,7 +127,12 @@ public class WorklogService {
         return headers;
     }
 
-    private WorklogSummaryResponse buildSummary(String author, LocalDate date, List<Map<String, Object>> commitsRaw) {
+    private WorklogSummaryResponse buildSummary(
+            String requestedAuthor,
+            LocalDate date,
+            List<Map<String, Object>> commitsRaw,
+            boolean fallbackToRepoWide
+    ) {
         List<String> featureChanges = new ArrayList<>();
         List<String> refactorChanges = new ArrayList<>();
         List<String> fixChanges = new ArrayList<>();
@@ -92,8 +145,11 @@ public class WorklogService {
 
         for (Map<String, Object> item : commitsRaw) {
             String sha = string(item.get("sha"));
-            String htmlUrl = string(item.get("html_url"));
+            if (sha.isBlank()) {
+                continue;
+            }
 
+            String htmlUrl = string(item.get("html_url"));
             Map<String, Object> commitObj = map(item.get("commit"));
             String message = string(commitObj.get("message"));
             String firstLine = message.contains("\n") ? message.substring(0, message.indexOf('\n')) : message;
@@ -119,17 +175,24 @@ public class WorklogService {
                     .build());
         }
 
-        if (commitItems.isEmpty()) {
-            comments.add("오늘 반영된 커밋이 없습니다.");
-        } else {
-            comments.add("오늘 총 " + commitItems.size() + "개 커밋을 반영했습니다.");
-            comments.add("파일 변경 " + totalFilesChanged + "건, +" + totalAdditions + " / -" + totalDeletions + " 라인입니다.");
-            comments.add("담당자 " + author + " 기준 자동 요약입니다.");
+        if (fallbackToRepoWide) {
+            comments.add("Author-matched commits were not found. Showing today's repository commits instead.");
+            comments.add("Check your GitHub username in the author field.");
         }
 
-        String text = buildShareText(author, date, commitItems, featureChanges, refactorChanges, fixChanges, comments);
+        if (commitItems.isEmpty()) {
+            comments.add("No commits were found for today.");
+            comments.add("Quick check: 1) correct author 2) pushed to main/default branch 3) timezone (Asia/Seoul)");
+        } else {
+            comments.add("Today's commit count: " + commitItems.size());
+            comments.add("Changed files: " + totalFilesChanged + ", line delta: +" + totalAdditions + " / -" + totalDeletions);
+            comments.add("Auto summary for author: " + requestedAuthor);
+        }
+
+        String text = buildShareText(requestedAuthor, date, commitItems, featureChanges, refactorChanges, fixChanges, comments);
+
         return WorklogSummaryResponse.builder()
-                .author(author)
+                .author(requestedAuthor)
                 .owner(owner)
                 .repo(repo)
                 .date(date)
@@ -146,6 +209,23 @@ public class WorklogService {
                 .build();
     }
 
+    private List<Map<String, Object>> filterByPossibleAuthor(List<Map<String, Object>> commits, String requestedAuthor) {
+        String needle = requestedAuthor.toLowerCase();
+        return commits.stream().filter(item -> {
+            String authorLogin = string(map(item.get("author")).get("login")).toLowerCase();
+            String committerLogin = string(map(item.get("committer")).get("login")).toLowerCase();
+
+            Map<String, Object> commitMap = map(item.get("commit"));
+            String authorName = string(map(commitMap.get("author")).get("name")).toLowerCase();
+            String committerName = string(map(commitMap.get("committer")).get("name")).toLowerCase();
+
+            return authorLogin.contains(needle)
+                    || committerLogin.contains(needle)
+                    || authorName.contains(needle)
+                    || committerName.contains(needle);
+        }).collect(Collectors.toList());
+    }
+
     public String buildShareText(WorklogSummaryResponse summary) {
         return summary.getGeneratedText();
     }
@@ -160,45 +240,46 @@ public class WorklogService {
             List<String> comments
     ) {
         StringBuilder sb = new StringBuilder();
-        sb.append("[자동 작업 공유] ").append(date).append(" / 담당: ").append(author).append("\n");
-        sb.append("- 저장소: ").append(owner).append("/").append(repo).append("\n");
-        sb.append("- 커밋 수: ").append(commits.size()).append("\n");
+        sb.append("[AUTO WORKLOG] ").append(date).append(" / owner: ").append(author).append("\n");
+        sb.append("- repository: ").append(owner).append("/").append(repo).append("\n");
+        sb.append("- commit count: ").append(commits.size()).append("\n");
 
         if (!features.isEmpty()) {
-            sb.append("- 기능 추가:\n");
-            features.forEach(m -> sb.append("  • ").append(m).append("\n"));
+            sb.append("- features:\n");
+            features.forEach(m -> sb.append("  * ").append(m).append("\n"));
         }
         if (!refactors.isEmpty()) {
-            sb.append("- 리팩토링:\n");
-            refactors.forEach(m -> sb.append("  • ").append(m).append("\n"));
+            sb.append("- refactors:\n");
+            refactors.forEach(m -> sb.append("  * ").append(m).append("\n"));
         }
         if (!fixes.isEmpty()) {
-            sb.append("- 수정/버그픽스:\n");
-            fixes.forEach(m -> sb.append("  • ").append(m).append("\n"));
+            sb.append("- fixes:\n");
+            fixes.forEach(m -> sb.append("  * ").append(m).append("\n"));
         }
         if (!comments.isEmpty()) {
-            sb.append("- 주석(자동):\n");
-            comments.forEach(c -> sb.append("  • ").append(c).append("\n"));
+            sb.append("- comments:\n");
+            comments.forEach(c -> sb.append("  * ").append(c).append("\n"));
         }
 
         if (!commits.isEmpty()) {
-            sb.append("- 커밋 목록:\n");
-            commits.forEach(c -> sb.append("  • [").append(c.getSha()).append("] ").append(c.getMessage()).append("\n"));
+            sb.append("- commits:\n");
+            commits.forEach(c -> sb.append("  * [").append(c.getSha()).append("] ").append(c.getMessage()).append("\n"));
         }
+
         return sb.toString().trim();
     }
 
     private void classify(String message, List<String> features, List<String> refactors, List<String> fixes) {
         String m = message.toLowerCase();
-        if (containsAny(m, "feat", "feature", "추가", "구현")) {
+        if (containsAny(m, "feat", "feature", "implement", "add", "new")) {
             features.add(message);
             return;
         }
-        if (containsAny(m, "refactor", "리팩토", "개선", "정리")) {
+        if (containsAny(m, "refactor", "cleanup", "clean-up", "restructure", "rename")) {
             refactors.add(message);
             return;
         }
-        if (containsAny(m, "fix", "bug", "오류", "버그", "수정")) {
+        if (containsAny(m, "fix", "bug", "hotfix", "patch", "error")) {
             fixes.add(message);
             return;
         }
@@ -207,7 +288,9 @@ public class WorklogService {
 
     private boolean containsAny(String src, String... keys) {
         for (String key : keys) {
-            if (src.contains(key)) return true;
+            if (src.contains(key)) {
+                return true;
+            }
         }
         return false;
     }
@@ -217,8 +300,12 @@ public class WorklogService {
     }
 
     private int intValue(Object v) {
-        if (v == null) return 0;
-        if (v instanceof Number n) return n.intValue();
+        if (v == null) {
+            return 0;
+        }
+        if (v instanceof Number n) {
+            return n.intValue();
+        }
         try {
             return Integer.parseInt(String.valueOf(v));
         } catch (Exception e) {
@@ -228,13 +315,13 @@ public class WorklogService {
 
     private Map<String, Object> map(Object v) {
         if (v instanceof Map<?, ?> m) {
-            return m.entrySet().stream()
-                    .collect(Collectors.toMap(e -> String.valueOf(e.getKey()), Map.Entry::getValue));
+            return m.entrySet().stream().collect(Collectors.toMap(e -> String.valueOf(e.getKey()), Map.Entry::getValue));
         }
         return Map.of();
     }
 
     private List<String> dedupe(List<String> source) {
-        return new ArrayList<>(new LinkedHashSet<>(source));
+        Set<String> set = new LinkedHashSet<>(source);
+        return new ArrayList<>(set);
     }
 }
