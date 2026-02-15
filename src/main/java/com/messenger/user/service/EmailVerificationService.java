@@ -2,17 +2,14 @@ package com.messenger.user.service;
 
 import com.messenger.common.exception.BusinessException;
 import com.messenger.common.exception.ErrorCode;
+import com.messenger.infrastructure.mail.MailSender;
 import com.messenger.user.entity.EmailVerification;
 import com.messenger.user.repository.EmailVerificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -24,19 +21,13 @@ import java.util.concurrent.ThreadLocalRandom;
 public class EmailVerificationService {
 
     private final EmailVerificationRepository emailVerificationRepository;
-    private final ObjectProvider<JavaMailSender> mailSenderProvider;
+    private final MailSender mailSender;
 
     @Value("${app.email-verification.code-ttl-minutes:10}")
     private long codeTtlMinutes;
 
     @Value("${app.email-verification.verified-ttl-minutes:30}")
     private long verifiedTtlMinutes;
-
-    @Value("${app.email-verification.from:no-reply@narsil.local}")
-    private String from;
-
-    @Value("${spring.mail.username:}")
-    private String mailUsername;
 
     @Value("${app.email-verification.debug-expose-code:true}")
     private boolean debugExposeCode;
@@ -57,19 +48,9 @@ public class EmailVerificationService {
         emailVerificationRepository.save(entity);
 
         try {
-            JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
-            if (mailSender == null) {
-                throw new IllegalStateException("JavaMailSender is not configured");
-            }
-            SimpleMailMessage message = new SimpleMailMessage();
-            String sender = resolveSenderAddress();
-            if (StringUtils.hasText(sender)) {
-                message.setFrom(sender);
-            }
-            message.setTo(email);
-            message.setSubject("[Narsil] Email verification code");
-            message.setText("Your verification code is: " + code + "\nThis code expires in " + codeTtlMinutes + " minutes.");
-            mailSender.send(message);
+            mailSender.send(email,
+                    "[Narsil] Email verification code",
+                    "Your verification code is: " + code + "\nThis code expires in " + codeTtlMinutes + " minutes.");
         } catch (Exception e) {
             log.warn("[email-verification] mail send failed. email={}, reason={}", email, e.getMessage());
             if (!debugExposeCode) {
@@ -120,15 +101,5 @@ public class EmailVerificationService {
 
     private String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase();
-    }
-
-    private String resolveSenderAddress() {
-        if (StringUtils.hasText(from) && !"no-reply@narsil.local".equalsIgnoreCase(from.trim())) {
-            return from.trim();
-        }
-        if (StringUtils.hasText(mailUsername)) {
-            return mailUsername.trim();
-        }
-        return from;
     }
 }
