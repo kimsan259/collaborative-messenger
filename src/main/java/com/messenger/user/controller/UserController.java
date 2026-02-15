@@ -5,6 +5,7 @@ import com.messenger.user.dto.UserResponse;
 import com.messenger.user.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,7 +26,8 @@ public class UserController {
 
     private final UserService userService;
 
-    private static final String UPLOAD_DIR = "uploads/profiles";
+    @Value("${app.upload.dir:uploads}")
+    private String uploadDir;
 
     // ===== 페이지 요청 =====
 
@@ -106,7 +108,7 @@ public class UserController {
         }
 
         // 저장 디렉토리 생성 (절대 경로로 변환)
-        Path uploadPath = Paths.get(UPLOAD_DIR).toAbsolutePath();
+        Path uploadPath = Paths.get(uploadDir, "profiles").toAbsolutePath();
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }

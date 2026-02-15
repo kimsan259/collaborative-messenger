@@ -31,7 +31,6 @@ import java.util.UUID;
 public class ChatMessageController {
 
     private static final long MAX_UPLOAD_SIZE = 20 * 1024 * 1024L;
-    private static final String CHAT_UPLOAD_DIR = "uploads/chat";
 
     private final ChatMessageService chatMessageService;
     private final ChatMessageProducer chatMessageProducer;
@@ -39,6 +38,8 @@ public class ChatMessageController {
 
     @Value("${spring.kafka.listener.auto-startup:true}")
     private boolean kafkaListenerAutoStartup;
+    @Value("${app.upload.dir:uploads}")
+    private String uploadDir;
 
     @GetMapping("/{roomId}/messages")
     public ResponseEntity<ApiResponse<List<ChatMessageResponse>>> getMessages(
@@ -84,7 +85,7 @@ public class ChatMessageController {
             ext = originalName.substring(dot);
         }
 
-        Path uploadPath = Paths.get(CHAT_UPLOAD_DIR).toAbsolutePath();
+        Path uploadPath = Paths.get(uploadDir, "chat").toAbsolutePath();
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }

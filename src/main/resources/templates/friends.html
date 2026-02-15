@@ -29,6 +29,10 @@
         <div class="mb-4">
             <h2 class="section-title">Friends</h2>
             <p class="section-sub">Manage your connections</p>
+            <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+                <span id="myPresenceBadge" class="badge-narsil badge-purple">My status: checking...</span>
+                <button class="btn-ghost" style="font-size:12px; padding:4px 10px;" onclick="refreshFriendData()">Refresh now</button>
+            </div>
         </div>
 
         <!-- 탭 -->
@@ -89,9 +93,34 @@
             loadFriends();
             loadReceivedRequests();
             loadSentRequests();
+            checkMyPresence();
             $('#searchKeyword').on('keypress', function(e) { if (e.which === 13) searchUsers(); });
-            setInterval(loadFriends, 10000);
+            setInterval(function() {
+                loadFriends();
+                checkMyPresence();
+            }, 10000);
         });
+
+        function refreshFriendData() {
+            loadFriends();
+            loadReceivedRequests();
+            loadSentRequests();
+            checkMyPresence();
+        }
+
+        function checkMyPresence() {
+            $.get('/api/presence/me', function(r) {
+                var online = r.data && r.data.online;
+                var badge = $('#myPresenceBadge');
+                if (online) {
+                    badge.removeClass('badge-purple').addClass('badge-green').text('My status: Online');
+                } else {
+                    badge.removeClass('badge-green').addClass('badge-purple').text('My status: Offline');
+                }
+            }).fail(function(xhr) {
+                console.error('[presence] check failed:', xhr.status, xhr.responseText);
+            });
+        }
 
         function switchTab(tab, btn) {
             $('.narsil-tab').removeClass('active');
