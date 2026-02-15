@@ -12,6 +12,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -33,6 +34,9 @@ public class EmailVerificationService {
 
     @Value("${app.email-verification.from:no-reply@narsil.local}")
     private String from;
+
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
 
     @Value("${app.email-verification.debug-expose-code:true}")
     private boolean debugExposeCode;
@@ -58,7 +62,10 @@ public class EmailVerificationService {
                 throw new IllegalStateException("JavaMailSender is not configured");
             }
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(from);
+            String sender = resolveSenderAddress();
+            if (StringUtils.hasText(sender)) {
+                message.setFrom(sender);
+            }
             message.setTo(email);
             message.setSubject("[Narsil] Email verification code");
             message.setText("Your verification code is: " + code + "\nThis code expires in " + codeTtlMinutes + " minutes.");
@@ -114,5 +121,14 @@ public class EmailVerificationService {
     private String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase();
     }
-}
 
+    private String resolveSenderAddress() {
+        if (StringUtils.hasText(from) && !"no-reply@narsil.local".equalsIgnoreCase(from.trim())) {
+            return from.trim();
+        }
+        if (StringUtils.hasText(mailUsername)) {
+            return mailUsername.trim();
+        }
+        return from;
+    }
+}

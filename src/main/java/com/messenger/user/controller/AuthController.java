@@ -82,6 +82,6 @@ public class AuthController {
     @ResponseBody
     public ResponseEntity<ApiResponse<Void>> logout(HttpSession session) {
         authService.logout(session);
-        return ResponseEntity.ok(ApiResponse.success("로그아웃했습니다."));
+        return ResponseEntity.ok(ApiResponse.success("로그아웃되었습니다."));
     }
 }

@@ -14,7 +14,6 @@
         <div class="orb orb-3"></div>
     </div>
 
-    <!-- ??삵돩野껊슣???-->
     <nav class="narsil-nav d-flex justify-content-between align-items-center">
         <a href="/chat/rooms" class="nav-brand"><span>Narsil</span></a>
         <div class="d-flex align-items-center gap-8">
@@ -34,7 +33,6 @@
             </div>
         </div>
 
-        <!-- ??-->
         <div class="narsil-tabs mb-4" id="tabNav">
             <button class="narsil-tab active" onclick="switchTab('friends', this)">Friends</button>
             <button class="narsil-tab" onclick="switchTab('received', this)" id="receivedTabBtn">
@@ -45,7 +43,6 @@
             <button class="narsil-tab" onclick="switchTab('search', this)">Add Friend</button>
         </div>
 
-        <!-- 燁살뮄??筌뤴뫖以?-->
         <div id="friendsPanel" class="glass-card" style="overflow:hidden;">
             <div id="friendsList"></div>
             <div id="noFriends" class="empty-state" style="display:none">
@@ -54,7 +51,6 @@
             </div>
         </div>
 
-        <!-- 獄쏆룇? ?遺욧퍕 -->
         <div id="receivedPanel" class="glass-card" style="overflow:hidden; display:none;">
             <div id="receivedList"></div>
             <div id="noReceived" class="empty-state" style="display:none">
@@ -62,7 +58,6 @@
             </div>
         </div>
 
-        <!-- 癰귣?沅??遺욧퍕 -->
         <div id="sentPanel" class="glass-card" style="overflow:hidden; display:none;">
             <div id="sentList"></div>
             <div id="noSent" class="empty-state" style="display:none">
@@ -70,11 +65,9 @@
             </div>
         </div>
 
-        <!-- 野꺜??-->
         <div id="searchPanel" style="display:none;">
             <div class="d-flex gap-8 mb-3">
-                <input type="text" class="narsil-input" id="searchKeyword"
-                       placeholder="Search by username or display name">
+                <input type="text" class="narsil-input" id="searchKeyword" placeholder="Search by username or display name">
                 <button class="btn-narsil btn-narsil-sm" onclick="searchUsers()" style="white-space:nowrap;">Search</button>
             </div>
             <div class="glass-card" style="overflow:hidden;">
@@ -93,9 +86,7 @@
             loadReceivedRequests();
             loadSentRequests();
             $('#searchKeyword').on('keypress', function(e) { if (e.which === 13) searchUsers(); });
-            setInterval(function() {
-                loadFriends();
-            }, 10000);
+            setInterval(function() { loadFriends(); }, 10000);
         });
 
         function refreshFriendData() {
@@ -146,7 +137,7 @@
                 r.data.forEach(function(f) {
                     list.append(renderItem(f.friendDisplayName, f.friendUsername,
                         '<button class="btn-narsil btn-narsil-sm" style="margin-right:6px;" onclick="viewProfile(' + f.friendId + ')">Profile</button>' +
-                        '<button class="btn-ghost btn-ghost-success" style="margin-right:6px;" onclick="openQuickSend(' + f.friendId + ', \'' + escapeHtml(f.friendDisplayName).replace(/'/g, \"&#39;\") + '\')">Quick Send</button>' +
+                        '<button class="btn-ghost btn-ghost-success" style="margin-right:6px;" onclick="openQuickSend(' + f.friendId + ', \'' + escapeHtml(f.friendDisplayName).replace(/'/g, "&#39;") + '\')">Quick Send</button>' +
                         '<button class="btn-narsil btn-narsil-sm" style="margin-right:6px;" onclick="startDm(' + f.friendId + ')">Message</button>' +
                         '<button class="btn-ghost btn-ghost-danger" onclick="removeFriend(' + f.friendshipId + ')">Remove</button>',
                         f.friendProfileImage));
@@ -255,7 +246,7 @@
             var file = fileInput.files && fileInput.files.length > 0 ? fileInput.files[0] : null;
 
             if (!text && !file) {
-                alert('筌롫뗄?놅쭪? ?癒?뮉 ???뵬 餓???롪돌????낆젾??뤾쉭??');
+                alert('텍스트 또는 파일 중 하나는 입력해야 합니다.');
                 return;
             }
 
@@ -275,11 +266,11 @@
                             processData: false,
                             contentType: false,
                             success: function() {
-                                alert('???뵬 筌롫뗄?놅쭪????袁⑸꽊??됰뮸??덈뼄.');
+                                alert('메시지가 전송되었습니다.');
                                 bootstrap.Modal.getInstance(document.getElementById('quickSendModal')).hide();
                             },
                             error: function(xhr) {
-                                alert(xhr.responseJSON ? xhr.responseJSON.message : '???뵬 ?袁⑸꽊 ??쎈솭');
+                                alert(xhr.responseJSON ? xhr.responseJSON.message : '파일 전송에 실패했습니다.');
                             }
                         });
                         return;
@@ -295,16 +286,16 @@
                             messageType: 'TEXT'
                         }),
                         success: function() {
-                            alert('筌롫뗄?놅쭪????袁⑸꽊??됰뮸??덈뼄.');
+                            alert('메시지가 전송되었습니다.');
                             bootstrap.Modal.getInstance(document.getElementById('quickSendModal')).hide();
                         },
                         error: function(xhr) {
-                            alert(xhr.responseJSON ? xhr.responseJSON.message : '筌롫뗄?놅쭪? ?袁⑸꽊 ??쎈솭');
+                            alert(xhr.responseJSON ? xhr.responseJSON.message : '메시지 전송에 실패했습니다.');
                         }
                     });
                 },
                 error: function(xhr) {
-                    alert(xhr.responseJSON ? xhr.responseJSON.message : 'DM ??밴쉐 ??쎈솭');
+                    alert(xhr.responseJSON ? xhr.responseJSON.message : 'DM 생성에 실패했습니다.');
                 }
             });
         }
@@ -345,7 +336,6 @@
         }
     </script>
 
-    <!-- ?袁⑥쨮??筌뤴뫀??-->
     <div class="modal fade" id="profileModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content" style="background:var(--bg-secondary); border:1px solid var(--border-subtle); border-radius:16px;">
@@ -366,14 +356,14 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" style="padding:16px 20px;">
-                    <textarea id="quickMessage" class="narsil-input" style="min-height:110px;" placeholder="筌롫뗄?놅쭪?????낆젾??뤾쉭??></textarea>
+                    <textarea id="quickMessage" class="narsil-input" style="min-height:110px;" placeholder="보낼 메시지를 입력하세요."></textarea>
                     <div style="height:10px;"></div>
                     <input id="quickFile" type="file" class="form-control" style="background:rgba(255,255,255,0.06); color:var(--text-primary); border:1px solid var(--border-subtle);">
-                    <div style="font-size:12px; color:var(--text-muted); margin-top:8px;">??용뮞????곸뵠 ???뵬筌??袁⑸꽊??猷???몃빍??</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:8px;">메시지 없이 파일만 전송해도 됩니다.</div>
                 </div>
                 <div class="modal-footer" style="border-top:1px solid var(--border-subtle); padding:12px 20px;">
-                    <button type="button" class="btn-ghost" data-bs-dismiss="modal">?띯뫁??/button>
-                    <button type="button" class="btn-narsil btn-narsil-sm" onclick="sendQuickMessage()">?袁⑸꽊</button>
+                    <button type="button" class="btn-ghost" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn-narsil btn-narsil-sm" onclick="sendQuickMessage()">전송</button>
                 </div>
             </div>
         </div>
