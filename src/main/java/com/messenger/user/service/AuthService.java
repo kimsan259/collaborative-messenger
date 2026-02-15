@@ -5,6 +5,7 @@ import com.messenger.common.exception.ErrorCode;
 import com.messenger.user.dto.LoginRequest;
 import com.messenger.user.dto.UserResponse;
 import com.messenger.user.entity.User;
+import com.messenger.user.entity.UserRole;
 import com.messenger.user.entity.UserStatus;
 import com.messenger.user.repository.UserRepository;
 import jakarta.servlet.http.HttpSession;
@@ -35,6 +36,14 @@ public class AuthService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.LOGIN_FAILED);
+        }
+
+        if (!user.isActive()) {
+            throw new BusinessException(ErrorCode.LOGIN_FAILED);
+        }
+
+        if (user.getRole() != UserRole.ADMIN && !user.isEmailVerified()) {
             throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
 

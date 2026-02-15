@@ -35,9 +35,12 @@ public class AdminAccountInitializer implements CommandLineRunner {
                 .email("admin@local")
                 .status(UserStatus.OFFLINE)
                 .role(UserRole.ADMIN)
+                .active(true)
+                .emailVerified(true)
                 .build();
 
         userRepository.save(admin);
         log.warn("[admin-init] default admin account created. username=admin");
     }
 }
+

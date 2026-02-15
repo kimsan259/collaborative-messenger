@@ -54,6 +54,8 @@ public class UserService {
                 .email(normalizedEmail)
                 .status(UserStatus.OFFLINE)
                 .role(UserRole.MEMBER)
+                .active(true)
+                .emailVerified(true)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -109,3 +111,4 @@ public class UserService {
         log.info("[profile-image-update] userId={}", userId);
     }
 }
+
