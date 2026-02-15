@@ -6,10 +6,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -17,6 +21,7 @@ import java.util.Set;
 public class UserPruneInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${app.user-maintenance.prune-on-startup:true}")
     private boolean pruneOnStartup;
@@ -29,24 +34,66 @@ public class UserPruneInitializer implements CommandLineRunner {
         }
 
         Set<String> whitelist = Set.of("admin", "kimsan4515");
-        int deactivated = 0;
+        List<User> allUsers = userRepository.findAll();
 
-        for (User user : userRepository.findAll()) {
-            if (whitelist.contains(user.getUsername())) {
-                user.activate();
-                user.markEmailVerified();
-                continue;
-            }
-            if (user.isActive()) {
-                user.deactivate();
-                deactivated++;
+        List<User> targets = allUsers.stream()
+                .filter(u -> !whitelist.contains(u.getUsername()))
+                .collect(Collectors.toList());
+
+        for (User keep : allUsers) {
+            if (whitelist.contains(keep.getUsername())) {
+                keep.activate();
+                keep.markEmailVerified();
             }
         }
 
-        if (deactivated > 0) {
-            log.warn("[user-prune] deactivated users except whitelist. count={}", deactivated);
-        } else {
-            log.info("[user-prune] no users to deactivate.");
+        if (targets.isEmpty()) {
+            log.info("[user-prune] no users to purge.");
+            return;
         }
+
+        List<Long> targetIds = targets.stream().map(User::getId).collect(Collectors.toList());
+        List<String> targetEmails = targets.stream()
+                .map(User::getEmail)
+                .filter(e -> e != null && !e.isBlank())
+                .collect(Collectors.toList());
+
+        purgeByUserIds(targetIds, targetEmails);
+        log.warn("[user-prune] purged users except whitelist. count={}", targetIds.size());
+    }
+
+    private void purgeByUserIds(List<Long> userIds, List<String> emails) {
+        String inUsers = placeholders(userIds.size());
+
+        jdbcTemplate.update("DELETE FROM notifications WHERE recipient_id IN (" + inUsers + ")", userIds.toArray());
+        jdbcTemplate.update("DELETE FROM friendships WHERE requester_id IN (" + inUsers + ") OR receiver_id IN (" + inUsers + ")",
+                concat(userIds, userIds));
+
+        jdbcTemplate.update("DELETE ri FROM report_items ri JOIN daily_reports dr ON ri.daily_report_id = dr.id WHERE dr.user_id IN (" + inUsers + ")", userIds.toArray());
+        jdbcTemplate.update("DELETE FROM daily_reports WHERE user_id IN (" + inUsers + ")", userIds.toArray());
+
+        jdbcTemplate.update("DELETE FROM user_teams WHERE user_id IN (" + inUsers + ")", userIds.toArray());
+        jdbcTemplate.update("DELETE FROM chat_room_members WHERE user_id IN (" + inUsers + ")", userIds.toArray());
+
+        // chat_messages is sharded by chat_room_id and may exist in both shards; this clears current datasource scope.
+        jdbcTemplate.update("DELETE FROM chat_messages WHERE sender_id IN (" + inUsers + ")", userIds.toArray());
+
+        if (!emails.isEmpty()) {
+            String inEmails = placeholders(emails.size());
+            jdbcTemplate.update("DELETE FROM email_verifications WHERE email IN (" + inEmails + ")", emails.toArray());
+        }
+
+        jdbcTemplate.update("DELETE FROM users WHERE id IN (" + inUsers + ")", userIds.toArray());
+    }
+
+    private String placeholders(int size) {
+        return String.join(",", java.util.Collections.nCopies(size, "?"));
+    }
+
+    private Object[] concat(List<Long> first, List<Long> second) {
+        List<Long> merged = new ArrayList<>(first.size() + second.size());
+        merged.addAll(first);
+        merged.addAll(second);
+        return merged.toArray();
     }
 }
