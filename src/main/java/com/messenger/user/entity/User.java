@@ -28,6 +28,9 @@ public class User extends BaseEntity {
     @Column(length = 100)
     private String email;
 
+    @Column(name = "github_username", length = 100)
+    private String githubUsername;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private UserStatus status;
@@ -58,6 +61,10 @@ public class User extends BaseEntity {
 
     public void updatePassword(String encodedPassword) {
         this.password = encodedPassword;
+    }
+
+    public void updateGithubUsername(String githubUsername) {
+        this.githubUsername = githubUsername;
     }
 
     public void updateProfileImage(String profileImage) {

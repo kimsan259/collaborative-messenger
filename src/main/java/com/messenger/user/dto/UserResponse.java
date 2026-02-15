@@ -16,6 +16,7 @@ public class UserResponse {
     private String username;
     private String displayName;
     private String email;
+    private String githubUsername;
     private String profileImage;
     private UserStatus status;
     private UserRole role;
@@ -26,6 +27,7 @@ public class UserResponse {
                 .username(user.getUsername())
                 .displayName(user.getDisplayName())
                 .email(user.getEmail())
+                .githubUsername(user.getGithubUsername())
                 .profileImage(user.getProfileImage())
                 .status(user.getStatus())
                 .role(user.getRole())

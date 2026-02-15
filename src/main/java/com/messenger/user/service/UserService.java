@@ -69,6 +69,11 @@ public class UserService {
         return UserResponse.from(user);
     }
 
+    public User findEntityById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
     public User findEntityByUsername(String username) {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -109,6 +114,29 @@ public class UserService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         user.updateProfileImage(profileImage);
         log.info("[profile-image-update] userId={}", userId);
+    }
+
+    @Transactional
+    public UserResponse updateGithubUsername(Long userId, String githubUsername) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        String normalized = githubUsername == null ? "" : githubUsername.trim();
+        if (!normalized.isBlank() && !normalized.matches("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "GitHub 작성자 값이 올바르지 않습니다.");
+        }
+
+        user.updateGithubUsername(normalized.isBlank() ? null : normalized);
+        log.info("[github-author-update] userId={}, githubUsername={}", userId, user.getGithubUsername());
+        return UserResponse.from(user);
+    }
+
+    public String resolveGithubAuthor(User user) {
+        String mapped = user.getGithubUsername();
+        if (mapped != null && !mapped.isBlank()) {
+            return mapped.trim();
+        }
+        return user.getUsername();
     }
 }
 

@@ -214,6 +214,7 @@ public class WorklogService {
         headers.set("Accept", "application/vnd.github+json");
         headers.set("X-GitHub-Api-Version", "2022-11-28");
         headers.set("User-Agent", "collaborative-messenger-worklog");
+
         String token = githubToken;
         if (token == null || token.isBlank()) {
             token = System.getenv("WORKLOG_GITHUB_TOKEN");
@@ -295,7 +296,7 @@ public class WorklogService {
             comments.add("기본 브랜치에서 커밋을 찾지 못해 전체 브랜치 기준으로 집계했습니다.");
         }
         if (fallbackToRepoWide) {
-            comments.add("작성자와 완전히 일치하는 커밋이 없어 저장소 전체 기준으로 집계했습니다.");
+            comments.add("작성자와 일치하는 커밋이 없어 저장소 전체 기준으로 집계했습니다.");
             comments.add("author 값은 GitHub 사용자명과 정확히 일치해야 합니다.");
         }
         if (fallbackToRecentWindow) {
@@ -304,12 +305,17 @@ public class WorklogService {
 
         if (commitItems.isEmpty()) {
             comments.add("오늘 반영된 커밋이 없습니다.");
-            comments.add("점검: GitHub 토큰 / 브랜치 / author 값 / 푸시 여부 / 시간대(Asia/Seoul)");
+            comments.add("점검: GitHub 토큰 / 브랜치 / author 값 / 시간대(Asia/Seoul)");
         } else {
             comments.add("커밋 " + commitItems.size() + "건, 파일 " + totalFilesChanged + "개 변경");
             comments.add("라인 변경 +" + totalAdditions + " / -" + totalDeletions);
-            comments.add("핵심 영향 영역: " + String.join(", ", topEntries(areaCounts, 4)));
+            comments.add("영향 영역: " + String.join(", ", topEntries(areaCounts, 4)));
         }
+
+        List<String> topAreas = topEntries(areaCounts, 5);
+        List<String> topFiles = topEntries(fileCounts, 6);
+        List<String> verificationPoints = inferVerificationPoints(topAreas, topFiles, featureChanges, fixChanges);
+        List<String> risks = inferRiskPoints(totalDeletions, fallbackToRepoWide, fallbackToRecentWindow, commitItems.size());
 
         String text = buildShareText(
                 requestedAuthor,
@@ -319,8 +325,10 @@ public class WorklogService {
                 refactorChanges,
                 fixChanges,
                 comments,
-                topEntries(areaCounts, 5),
-                topEntries(fileCounts, 6)
+                topAreas,
+                topFiles,
+                verificationPoints,
+                risks
         );
 
         return WorklogSummaryResponse.builder()
@@ -363,14 +371,14 @@ public class WorklogService {
     }
 
     private List<Map<String, Object>> dedupeCommitMapsBySha(List<Map<String, Object>> source) {
-        Map<String, Map<String, Object>> map = new LinkedHashMap<>();
+        Map<String, Map<String, Object>> dedup = new LinkedHashMap<>();
         for (Map<String, Object> item : source) {
             String sha = string(item.get("sha"));
             if (!sha.isBlank()) {
-                map.putIfAbsent(sha, item);
+                dedup.putIfAbsent(sha, item);
             }
         }
-        return new ArrayList<>(map.values());
+        return new ArrayList<>(dedup.values());
     }
 
     public String buildShareText(WorklogSummaryResponse summary) {
@@ -386,47 +394,62 @@ public class WorklogService {
             List<String> fixes,
             List<String> comments,
             List<String> topAreas,
-            List<String> topFiles
+            List<String> topFiles,
+            List<String> verificationPoints,
+            List<String> risks
     ) {
         StringBuilder sb = new StringBuilder();
         sb.append("[오늘 작업 브리핑] ").append(date).append("\n");
-        sb.append("담당자: ").append(author).append("\n");
+        sb.append("담당: ").append(author).append("\n");
         sb.append("저장소: ").append(owner).append("/").append(repo).append("\n");
-        sb.append("총 커밋: ").append(commits.size()).append("건\n\n");
+        sb.append("커밋 수: ").append(commits.size()).append("\n\n");
 
         sb.append("1) 왜 변경했는가\n");
         for (String line : inferReasons(features, refactors, fixes, comments)) {
             sb.append("- ").append(line).append("\n");
         }
 
-        sb.append("\n2) 핵심 변경 요약\n");
+        sb.append("\n2) 무엇을 수정했는가\n");
         if (!topAreas.isEmpty()) {
             sb.append("- 영향 영역: ").append(String.join(", ", topAreas)).append("\n");
         }
         if (!topFiles.isEmpty()) {
-            sb.append("- 주요 파일: ").append(String.join(", ", topFiles)).append("\n");
+            sb.append("- 핵심 파일: ").append(String.join(", ", topFiles)).append("\n");
         }
-
         if (!features.isEmpty()) {
-            sb.append("- 기능 추가/개선\n");
-            dedupe(features).stream().limit(5).forEach(m -> sb.append("  • ").append(m).append("\n"));
+            sb.append("- 기능/개선\n");
+            dedupe(features).stream().limit(5).forEach(m -> sb.append("  * ").append(m).append("\n"));
         }
         if (!fixes.isEmpty()) {
             sb.append("- 버그 수정\n");
-            dedupe(fixes).stream().limit(5).forEach(m -> sb.append("  • ").append(m).append("\n"));
+            dedupe(fixes).stream().limit(5).forEach(m -> sb.append("  * ").append(m).append("\n"));
         }
         if (!refactors.isEmpty()) {
             sb.append("- 리팩토링/정리\n");
-            dedupe(refactors).stream().limit(5).forEach(m -> sb.append("  • ").append(m).append("\n"));
+            dedupe(refactors).stream().limit(5).forEach(m -> sb.append("  * ").append(m).append("\n"));
         }
 
-        sb.append("\n3) 커밋 디테일\n");
+        sb.append("\n3) 동료 확인 포인트\n");
+        if (verificationPoints.isEmpty()) {
+            sb.append("- 변경된 경로의 핵심 사용자 흐름(로그인, 친구, 채팅)을 기본 점검해 주세요.\n");
+        } else {
+            verificationPoints.stream().limit(6).forEach(v -> sb.append("- ").append(v).append("\n"));
+        }
+
+        sb.append("\n4) 리스크/후속\n");
+        if (risks.isEmpty()) {
+            sb.append("- 큰 운영 리스크는 낮아 보이며, 배포 후 에러로그 모니터링을 유지합니다.\n");
+        } else {
+            risks.stream().limit(5).forEach(r -> sb.append("- ").append(r).append("\n"));
+        }
+
+        sb.append("\n5) 커밋 상세\n");
         commits.stream().limit(12).forEach(c -> sb.append("- [").append(c.getSha()).append("] ")
                 .append(c.getMessage()).append(" (+").append(c.getAdditions())
                 .append(" / -").append(c.getDeletions()).append(")\n"));
 
         if (!comments.isEmpty()) {
-            sb.append("\n4) 참고 메모\n");
+            sb.append("\n6) 참고 메모\n");
             comments.forEach(c -> sb.append("- ").append(c).append("\n"));
         }
 
@@ -436,21 +459,74 @@ public class WorklogService {
     private List<String> inferReasons(List<String> features, List<String> refactors, List<String> fixes, List<String> comments) {
         List<String> reasons = new ArrayList<>();
         if (!features.isEmpty()) {
-            reasons.add("신규 기능 또는 사용자 흐름 개선을 반영하기 위해 변경했습니다.");
+            reasons.add("사용자 기능 확장 또는 UX 개선 목적의 변경을 반영했습니다.");
         }
         if (!fixes.isEmpty()) {
-            reasons.add("장애 가능성을 낮추고 안정성을 높이기 위해 수정했습니다.");
+            reasons.add("오류 가능성과 장애 위험을 낮추기 위해 안정화 패치를 포함했습니다.");
         }
         if (!refactors.isEmpty()) {
-            reasons.add("유지보수성과 확장성을 높이기 위해 구조를 정리했습니다.");
-        }
-        if (reasons.isEmpty()) {
-            reasons.add("운영 점검 및 코드 품질 정리를 위해 변경했습니다.");
+            reasons.add("유지보수성과 코드 가독성을 높이기 위해 구조를 정리했습니다.");
         }
         if (comments.stream().anyMatch(c -> c.contains("72시간"))) {
-            reasons.add("당일 외 최근 반영분까지 포함해 누락 없이 확인했습니다.");
+            reasons.add("오늘 커밋이 적은 경우를 대비해 최근 반영분까지 포함해 누락을 줄였습니다.");
+        }
+        if (reasons.isEmpty()) {
+            reasons.add("운영 점검과 코드 정리를 위해 변경했습니다.");
         }
         return reasons;
+    }
+
+    private List<String> inferVerificationPoints(
+            List<String> topAreas,
+            List<String> topFiles,
+            List<String> features,
+            List<String> fixes
+    ) {
+        List<String> points = new ArrayList<>();
+        String joinedAreas = String.join(" ", topAreas).toLowerCase();
+        String joinedFiles = String.join(" ", topFiles).toLowerCase();
+
+        if (joinedAreas.contains("auth") || joinedFiles.contains("auth")) {
+            points.add("회원가입/로그인/로그아웃 시나리오를 브라우저 2개로 재검증해 주세요.");
+        }
+        if (joinedAreas.contains("chat") || joinedFiles.contains("chat")) {
+            points.add("1:1 채팅 메시지 전송과 수신 정합성을 양쪽 계정에서 확인해 주세요.");
+        }
+        if (joinedAreas.contains("worklog") || joinedFiles.contains("worklog")) {
+            points.add("요약 생성 시 커밋 수/작성자/핵심 파일이 기대값과 일치하는지 확인해 주세요.");
+        }
+        if (joinedAreas.contains("user") || joinedAreas.contains("friend") || joinedFiles.contains("friend")) {
+            points.add("친구 목록 조회 및 친구에게 전송 동작을 확인해 주세요.");
+        }
+        if (!features.isEmpty()) {
+            points.add("새로 추가된 UI 버튼의 진행 상태(로딩/완료/실패 표시)를 점검해 주세요.");
+        }
+        if (!fixes.isEmpty()) {
+            points.add("기존에 실패하던 케이스가 재현되지 않는지 회귀 테스트해 주세요.");
+        }
+        return dedupe(points);
+    }
+
+    private List<String> inferRiskPoints(
+            int totalDeletions,
+            boolean fallbackToRepoWide,
+            boolean fallbackToRecentWindow,
+            int commitCount
+    ) {
+        List<String> risks = new ArrayList<>();
+        if (totalDeletions > 500) {
+            risks.add("삭제 라인이 큰 편이라 일부 기능 회귀 가능성을 확인해야 합니다.");
+        }
+        if (fallbackToRepoWide) {
+            risks.add("작성자 매핑이 정확하지 않으면 다른 사람 커밋이 섞일 수 있습니다.");
+        }
+        if (fallbackToRecentWindow) {
+            risks.add("72시간 확장 조회가 켜지면 '오늘 작업' 기준보다 넓게 집계될 수 있습니다.");
+        }
+        if (commitCount == 0) {
+            risks.add("커밋이 0건이면 토큰 권한, 브랜치, 작성자 매핑부터 점검이 필요합니다.");
+        }
+        return dedupe(risks);
     }
 
     private void classify(String message, List<String> features, List<String> refactors, List<String> fixes) {

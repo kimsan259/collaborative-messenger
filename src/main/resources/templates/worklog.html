@@ -35,6 +35,8 @@
         }
         .worklog-sub { margin-top: 8px; color: rgba(255,255,255,0.78); font-size: 20px; font-weight: 500; }
         .worklog-grid { display:grid; grid-template-columns: 1fr 1fr 190px 190px; gap: 12px; margin-top: 22px; }
+        .worklog-small-grid { display:grid; grid-template-columns: 1fr 160px; gap: 12px; margin-top: 12px; }
+        .worklog-label { font-size: 12px; color: rgba(255,255,255,0.72); margin-bottom: 6px; font-weight: 600; letter-spacing: .2px; }
         .worklog-btn-primary {
             border-radius: 13px; border: 1px solid rgba(99,102,241,0.8);
             background: linear-gradient(135deg, #7c3aed, #2563eb); color:#fff; font-weight:700;
@@ -43,8 +45,16 @@
             border-radius: 13px; border: 1px solid rgba(34,197,94,0.55);
             background: linear-gradient(135deg, rgba(20,184,121,0.35), rgba(6,78,59,0.35)); color:#dcfce7; font-weight:700;
         }
+        .worklog-btn-muted {
+            border-radius: 13px;
+            border: 1px solid rgba(255,255,255,0.24);
+            background: rgba(255,255,255,0.08);
+            color: #e5e7eb;
+            font-weight: 700;
+        }
         .worklog-btn-primary:disabled,
-        .worklog-btn-accent:disabled {
+        .worklog-btn-accent:disabled,
+        .worklog-btn-muted:disabled {
             opacity: .7;
             cursor: not-allowed;
         }
@@ -124,7 +134,7 @@
             margin: 0;
             color: var(--text-primary);
             font-size: 22px;
-            line-height: 1.9;
+            line-height: 1.85;
             font-weight: 600;
             letter-spacing: 0.1px;
         }
@@ -182,8 +192,8 @@
         @media (max-width: 640px) {
             .worklog-title { font-size: 30px; }
             .worklog-sub { font-size: 15px; }
-            #summaryText { font-size: 17px; line-height: 1.75; }
-            .worklog-grid { grid-template-columns: 1fr; }
+            #summaryText { font-size: 17px; line-height: 1.7; }
+            .worklog-grid, .worklog-small-grid { grid-template-columns: 1fr; }
             .process-row { grid-template-columns: 1fr; }
             .toast-wrap { left: 14px; right: 14px; top: 72px; }
             .narsil-toast { max-width: none; min-width: 0; }
@@ -210,9 +220,20 @@
 <div class="worklog-shell">
     <div class="worklog-hero">
         <h2 class="worklog-title">DAILY WORKLOG COMMAND CENTER</h2>
-        <p class="worklog-sub">GitHub 커밋 기반 자동 분석 후 동료에게 즉시 공유합니다.</p>
+        <p class="worklog-sub">작성자 매핑을 저장하고, 나/친구 작성자 기준으로 브리핑을 생성해 즉시 공유합니다.</p>
+
+        <div class="worklog-small-grid">
+            <div>
+                <div class="worklog-label">내 GitHub 작성자 매핑</div>
+                <input id="githubAuthorInput" class="narsil-input" placeholder="예: kimsan4515">
+            </div>
+            <div style="display:flex; align-items:end;">
+                <button id="saveAuthorBtn" class="btn worklog-btn-muted w-100" onclick="saveGithubAuthor()">매핑 저장</button>
+            </div>
+        </div>
+
         <div class="worklog-grid">
-            <input id="authorInput" class="narsil-input" th:value="${fixedAuthor}" readonly>
+            <select id="authorSelect" class="form-select narsil-input"></select>
             <select id="friendSelect" class="form-select narsil-input"></select>
             <button id="summaryBtn" class="btn worklog-btn-primary" onclick="loadSummary()">요약 생성</button>
             <button id="broadcastBtn" class="btn worklog-btn-accent" onclick="broadcastSummary()">친구에게 전송</button>
@@ -248,17 +269,23 @@
 <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
 <script>
     var latestSummary = null;
+    var authorOptions = [];
 
     $(document).ready(function() {
-        loadFriends();
-        loadSummary();
+        loadAuthors().always(function() {
+            loadFriends();
+            loadSummary();
+        });
     });
 
     function setBusy(isBusy, mode) {
         var $summaryBtn = $('#summaryBtn');
         var $broadcastBtn = $('#broadcastBtn');
+        var $saveAuthorBtn = $('#saveAuthorBtn');
         $summaryBtn.prop('disabled', isBusy);
         $broadcastBtn.prop('disabled', isBusy);
+        $saveAuthorBtn.prop('disabled', isBusy);
+
         if (isBusy) {
             if (mode === 'summary') {
                 $summaryBtn.text('요약 생성 중...');
@@ -266,9 +293,13 @@
             if (mode === 'broadcast') {
                 $broadcastBtn.text('전송 중...');
             }
+            if (mode === 'save-author') {
+                $saveAuthorBtn.text('저장 중...');
+            }
         } else {
             $summaryBtn.text('요약 생성');
             $broadcastBtn.text('친구에게 전송');
+            $saveAuthorBtn.text('매핑 저장');
         }
     }
 
@@ -316,6 +347,59 @@
         }
     }
 
+    function loadAuthors() {
+        return $.get('/api/worklog/authors', function(r) {
+            authorOptions = r.data || [];
+            var sel = $('#authorSelect');
+            sel.empty();
+            if (!authorOptions.length) {
+                sel.append('<option value="">작성자 없음</option>');
+                return;
+            }
+
+            var selfAuthor = null;
+            authorOptions.forEach(function(opt) {
+                var label = (opt.self ? '[나] ' : '') + (opt.displayName || opt.username) + ' / @' + opt.githubAuthor;
+                sel.append('<option value="' + escapeHtml(opt.githubAuthor) + '">' + escapeHtml(label) + '</option>');
+                if (opt.self) {
+                    selfAuthor = opt.githubAuthor;
+                }
+            });
+
+            if (selfAuthor) {
+                sel.val(selfAuthor);
+                $('#githubAuthorInput').val(selfAuthor);
+            }
+        }).fail(function(xhr) {
+            showToast('error', xhr.responseJSON ? xhr.responseJSON.message : '작성자 목록 조회 실패');
+        });
+    }
+
+    function saveGithubAuthor() {
+        var author = $('#githubAuthorInput').val().trim();
+        setBusy(true, 'save-author');
+        $.ajax({
+            url: '/api/worklog/github-author',
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ githubAuthor: author }),
+            success: function(r) {
+                showToast('success', r.message || 'GitHub 작성자 매핑을 저장했습니다.');
+                loadAuthors();
+            },
+            error: function(xhr) {
+                showToast('error', xhr.responseJSON ? xhr.responseJSON.message : '작성자 매핑 저장 실패');
+            },
+            complete: function() {
+                setBusy(false);
+            }
+        });
+    }
+
+    function getSelectedAuthor() {
+        return ($('#authorSelect').val() || '').trim();
+    }
+
     function loadFriends() {
         $.get('/api/worklog/friends', function(r) {
             var sel = $('#friendSelect');
@@ -334,7 +418,7 @@
     }
 
     function loadSummary() {
-        var author = $('#authorInput').val().trim();
+        var author = getSelectedAuthor();
         resetProcess();
         setBusy(true, 'summary');
 
@@ -386,7 +470,7 @@
 
     function broadcastSummary() {
         var friendId = $('#friendSelect').val();
-        var author = $('#authorInput').val().trim();
+        var author = getSelectedAuthor();
         if (!friendId) {
             showToast('error', '전송할 친구를 선택해 주세요.');
             return;
