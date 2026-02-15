@@ -114,7 +114,7 @@
 
 <div class="register-card">
     <h1 class="title">JOIN NARSIL CORE</h1>
-    <p class="sub">이메일 인증 완료 후 회원가입이 가능합니다.</p>
+    <p class="sub">?대찓???몄쬆 ?꾨즺 ???뚯썝媛?낆씠 媛?ν빀?덈떎.</p>
 
     <div id="errorMessage" class="msg error"></div>
     <div id="successMessage" class="msg success"></div>
@@ -136,27 +136,27 @@
         </div>
 
         <div class="field">
-            <label class="label">Email (필수 인증)</label>
+            <label class="label">Email (?꾩닔 ?몄쬆)</label>
             <div class="row2">
                 <input type="email" class="input" id="email" required placeholder="you@company.com">
-                <button type="button" id="sendCodeBtn" class="btn">코드 발송</button>
+                <button type="button" id="sendCodeBtn" class="btn">肄붾뱶 諛쒖넚</button>
             </div>
         </div>
 
         <div class="field">
-            <label class="label">Verification Code</label>
+            <label class="label">Email Code</label>
             <div class="row2">
-                <input type="text" class="input" id="emailCode" maxlength="6" placeholder="6자리 코드">
-                <button type="button" id="verifyCodeBtn" class="btn btn-verify">코드 확인</button>
+                <input type="text" class="input" id="emailCode" maxlength="6" placeholder="메일로 받은 6자리 인증번호">
+                <button type="button" id="verifyCodeBtn" class="btn btn-verify">肄붾뱶 ?뺤씤</button>
             </div>
-            <div id="verifyState" class="verify-state">이메일 인증 필요</div>
+            <div id="verifyState" class="verify-state">?대찓???몄쬆 ?꾩슂</div>
         </div>
 
         <button type="submit" class="btn btn-main" id="registerBtn">Create Account</button>
     </form>
 
     <div class="footer">
-        이미 계정이 있나요? <a th:href="@{/auth/login}">Sign In</a>
+        ?대? 怨꾩젙???덈굹?? <a th:href="@{/auth/login}">Sign In</a>
     </div>
 </div>
 
@@ -177,12 +177,12 @@
     $('#sendCodeBtn').on('click', function() {
         var email = $('#email').val().trim();
         if (!email) {
-            showError('이메일을 입력하세요.');
+            showError('?대찓?쇱쓣 ?낅젰?섏꽭??');
             return;
         }
 
         var btn = $(this);
-        btn.prop('disabled', true).text('발송 중...');
+        btn.prop('disabled', true).text('諛쒖넚 以?..');
 
         $.ajax({
             url: '/api/auth/email/send',
@@ -191,15 +191,14 @@
             data: JSON.stringify({ email: email }),
             success: function(res) {
                 emailVerified = false;
-                $('#verifyState').removeClass('ok').text('인증 코드를 입력하고 코드 확인을 눌러주세요.');
-                var debugCode = res.data && res.data.debugCode ? (' [개발코드: ' + res.data.debugCode + ']') : '';
-                showSuccess('인증 코드를 전송했습니다.' + debugCode);
+                $('#verifyState').removeClass('ok').text('?몄쬆 肄붾뱶瑜??낅젰?섍퀬 肄붾뱶 ?뺤씤???뚮윭二쇱꽭??');
+                showSuccess('인증 코드를 이메일로 전송했습니다. 메일에서 받은 6자리 코드를 입력해 주세요.');
             },
             error: function(xhr) {
-                showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '코드 발송 실패');
+                showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '肄붾뱶 諛쒖넚 ?ㅽ뙣');
             },
             complete: function() {
-                btn.prop('disabled', false).text('코드 발송');
+                btn.prop('disabled', false).text('肄붾뱶 諛쒖넚');
             }
         });
     });
@@ -209,12 +208,12 @@
         var code = $('#emailCode').val().trim();
 
         if (!email || !code) {
-            showError('이메일과 인증 코드를 모두 입력하세요.');
+            showError('?대찓?쇨낵 ?몄쬆 肄붾뱶瑜?紐⑤몢 ?낅젰?섏꽭??');
             return;
         }
 
         var btn = $(this);
-        btn.prop('disabled', true).text('확인 중...');
+        btn.prop('disabled', true).text('?뺤씤 以?..');
 
         $.ajax({
             url: '/api/auth/email/verify',
@@ -223,30 +222,30 @@
             data: JSON.stringify({ email: email, code: code }),
             success: function() {
                 emailVerified = true;
-                $('#verifyState').addClass('ok').text('이메일 인증 완료');
-                showSuccess('이메일 인증이 완료되었습니다.');
+                $('#verifyState').addClass('ok').text('?대찓???몄쬆 ?꾨즺');
+                showSuccess('?대찓???몄쬆???꾨즺?섏뿀?듬땲??');
             },
             error: function(xhr) {
                 emailVerified = false;
-                $('#verifyState').removeClass('ok').text('이메일 인증 필요');
-                showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '코드 확인 실패');
+                $('#verifyState').removeClass('ok').text('?대찓???몄쬆 ?꾩슂');
+                showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '肄붾뱶 ?뺤씤 ?ㅽ뙣');
             },
             complete: function() {
-                btn.prop('disabled', false).text('코드 확인');
+                btn.prop('disabled', false).text('肄붾뱶 ?뺤씤');
             }
         });
     });
 
     $('#email').on('input', function() {
         emailVerified = false;
-        $('#verifyState').removeClass('ok').text('이메일 인증 필요');
+        $('#verifyState').removeClass('ok').text('?대찓???몄쬆 ?꾩슂');
     });
 
     $('#registerForm').on('submit', function(e) {
         e.preventDefault();
 
         if (!emailVerified) {
-            showError('회원가입 전에 이메일 인증을 완료하세요.');
+            showError('?뚯썝媛???꾩뿉 ?대찓???몄쬆???꾨즺?섏꽭??');
             return;
         }
 
@@ -278,3 +277,4 @@
 </script>
 </body>
 </html>
+

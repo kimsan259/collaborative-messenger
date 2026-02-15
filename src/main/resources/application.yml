@@ -105,7 +105,7 @@ app:
     code-ttl-minutes: ${EMAIL_VERIFICATION_TTL_MINUTES:10}
     verified-ttl-minutes: ${EMAIL_VERIFIED_TTL_MINUTES:30}
     from: ${EMAIL_VERIFICATION_FROM:no-reply@narsil.local}
-    debug-expose-code: ${EMAIL_VERIFICATION_DEBUG_EXPOSE_CODE:true}
+    debug-expose-code: ${EMAIL_VERIFICATION_DEBUG_EXPOSE_CODE:false}
 
   user-maintenance:
     prune-on-startup: ${USER_PRUNE_ON_STARTUP:true}

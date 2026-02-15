@@ -23,24 +23,29 @@ public class AdminAccountInitializer implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         String adminUsername = "admin";
+        User admin = userRepository.findByUsername(adminUsername).orElse(null);
 
-        if (userRepository.existsByUsername(adminUsername)) {
+        if (admin == null) {
+            admin = User.builder()
+                    .username(adminUsername)
+                    .password(passwordEncoder.encode("admin"))
+                    .displayName("Administrator")
+                    .email("admin@local")
+                    .status(UserStatus.OFFLINE)
+                    .role(UserRole.ADMIN)
+                    .active(true)
+                    .emailVerified(true)
+                    .build();
+            userRepository.save(admin);
+            log.warn("[admin-init] default admin account created. username=admin");
             return;
         }
 
-        User admin = User.builder()
-                .username(adminUsername)
-                .password(passwordEncoder.encode("admin"))
-                .displayName("Administrator")
-                .email("admin@local")
-                .status(UserStatus.OFFLINE)
-                .role(UserRole.ADMIN)
-                .active(true)
-                .emailVerified(true)
-                .build();
-
+        admin.updateRole(UserRole.ADMIN);
+        admin.activate();
+        admin.markEmailVerified();
         userRepository.save(admin);
-        log.warn("[admin-init] default admin account created. username=admin");
+        log.info("[admin-init] existing admin account normalized. username=admin");
     }
 }
 
