@@ -44,6 +44,7 @@ public class AdminAccountInitializer implements CommandLineRunner {
         admin.updateRole(UserRole.ADMIN);
         admin.activate();
         admin.markEmailVerified();
+        admin.updatePassword(passwordEncoder.encode("admin"));
         userRepository.save(admin);
         log.info("[admin-init] existing admin account normalized. username=admin");
     }
