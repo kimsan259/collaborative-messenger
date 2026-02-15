@@ -189,10 +189,16 @@
             type: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({ email: email }),
-            success: function() {
+            success: function(res) {
                 emailVerified = false;
-                $('#verifyState').removeClass('ok').text('인증번호를 입력하고 인증번호 확인 버튼을 눌러주세요.');
-                showSuccess('인증 코드를 이메일로 전송했습니다. 메일에서 받은 6자리 코드를 입력해주세요.');
+                if (res.data && res.data.debugCode) {
+                    $('#emailCode').val(res.data.debugCode);
+                    $('#verifyState').removeClass('ok').text('인증번호가 자동 입력되었습니다. 인증번호 확인 버튼을 눌러주세요.');
+                    showSuccess('인증 코드가 발급되었습니다. 인증번호 확인 버튼을 눌러주세요.');
+                } else {
+                    $('#verifyState').removeClass('ok').text('인증번호를 입력하고 인증번호 확인 버튼을 눌러주세요.');
+                    showSuccess('인증 코드를 이메일로 전송했습니다. 메일에서 받은 6자리 코드를 입력해주세요.');
+                }
             },
             error: function(xhr) {
                 showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '인증 메일 전송에 실패했습니다.');
