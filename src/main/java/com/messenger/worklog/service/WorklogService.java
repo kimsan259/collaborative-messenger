@@ -214,8 +214,15 @@ public class WorklogService {
         headers.set("Accept", "application/vnd.github+json");
         headers.set("X-GitHub-Api-Version", "2022-11-28");
         headers.set("User-Agent", "collaborative-messenger-worklog");
-        if (githubToken != null && !githubToken.isBlank()) {
-            headers.setBearerAuth(githubToken);
+        String token = githubToken;
+        if (token == null || token.isBlank()) {
+            token = System.getenv("WORKLOG_GITHUB_TOKEN");
+        }
+        if (token != null) {
+            token = token.trim();
+        }
+        if (token != null && !token.isBlank()) {
+            headers.setBearerAuth(token);
         }
         return headers;
     }
@@ -508,7 +515,11 @@ public class WorklogService {
 
     private Map<String, Object> map(Object v) {
         if (v instanceof Map<?, ?> m) {
-            return m.entrySet().stream().collect(Collectors.toMap(e -> String.valueOf(e.getKey()), Map.Entry::getValue));
+            Map<String, Object> converted = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> e : m.entrySet()) {
+                converted.put(String.valueOf(e.getKey()), e.getValue());
+            }
+            return converted;
         }
         return Map.of();
     }
@@ -520,7 +531,11 @@ public class WorklogService {
         List<Map<String, Object>> converted = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?> m) {
-                converted.add(m.entrySet().stream().collect(Collectors.toMap(e -> String.valueOf(e.getKey()), Map.Entry::getValue)));
+                Map<String, Object> row = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> e : m.entrySet()) {
+                    row.put(String.valueOf(e.getKey()), e.getValue());
+                }
+                converted.add(row);
             }
         }
         return converted;
