@@ -39,15 +39,22 @@ spring:
 
   mail:
     host: ${SPRING_MAIL_HOST:}
-    port: ${SPRING_MAIL_PORT:587}
+    port: ${SPRING_MAIL_PORT:465}
     username: ${SPRING_MAIL_USERNAME:}
     password: ${SPRING_MAIL_PASSWORD:}
+    protocol: ${SPRING_MAIL_PROTOCOL:smtps}
     properties:
       mail:
         smtp:
           auth: ${SPRING_MAIL_SMTP_AUTH:true}
           starttls:
-            enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:true}
+            enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:false}
+        smtps:
+          auth: true
+          ssl:
+            enable: true
+          timeout: 10000
+          connectiontimeout: 10000
 
   session:
     store-type: ${SPRING_SESSION_STORE_TYPE:none}
