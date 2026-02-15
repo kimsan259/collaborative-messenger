@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narsil - Worklog</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body class="page-border">
+<div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+</div>
+
+<nav class="narsil-nav d-flex justify-content-between align-items-center">
+    <a href="/chat/rooms" class="nav-brand"><span>Narsil</span></a>
+    <div class="d-flex align-items-center gap-8">
+        <a th:href="@{/profile}" class="nav-user" style="text-decoration:none;" th:text="${displayName}">User</a>
+        <a th:href="@{/chat/rooms}" class="nav-btn">Chat</a>
+        <a th:href="@{/friends}" class="nav-btn">Friends</a>
+        <a th:href="@{/auth/logout}" class="nav-btn">Logout</a>
+    </div>
+</nav>
+
+<div style="position:relative; z-index:1; max-width:900px; margin:0 auto; padding:32px 20px;">
+    <div class="mb-4">
+        <h2 class="section-title">Daily Worklog Auto Share</h2>
+        <p class="section-sub">GitHub 커밋 기반으로 자동 요약 생성 후 메신저로 전송</p>
+    </div>
+
+    <div class="glass-card" style="padding:16px; margin-bottom:16px;">
+        <div class="d-flex gap-8 align-items-center" style="flex-wrap:wrap;">
+            <input id="authorInput" class="narsil-input" style="max-width:220px;" value="kimsan4515" placeholder="author">
+            <select id="roomSelect" class="form-select" style="max-width:280px;"></select>
+            <button class="btn-narsil btn-narsil-sm" onclick="loadSummary()">요약 생성</button>
+            <button class="btn-ghost btn-ghost-success" onclick="broadcastSummary()">메신저 전송</button>
+        </div>
+    </div>
+
+    <div class="glass-card" style="padding:16px;">
+        <div id="meta" style="font-size:13px; color:var(--text-muted); margin-bottom:10px;"></div>
+        <pre id="summaryText" style="white-space:pre-wrap; margin:0; color:var(--text-primary);"></pre>
+    </div>
+</div>
+
+<script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
+<script>
+    var latestSummary = null;
+
+    $(document).ready(function() {
+        loadRooms();
+    });
+
+    function loadRooms() {
+        $.get('/api/chat/rooms', function(r) {
+            var sel = $('#roomSelect');
+            sel.empty();
+            if (!r.data || r.data.length === 0) {
+                sel.append('<option value="">채팅방 없음</option>');
+                return;
+            }
+            r.data.forEach(function(room) {
+                sel.append('<option value="' + room.id + '">' + escapeHtml(room.name) + ' (#' + room.id + ')</option>');
+            });
+        }).fail(function(xhr) {
+            alert(xhr.responseJSON ? xhr.responseJSON.message : '채팅방 목록 조회 실패');
+        });
+    }
+
+    function loadSummary() {
+        var author = $('#authorInput').val().trim();
+        $.get('/api/worklog/today?author=' + encodeURIComponent(author), function(r) {
+            latestSummary = r.data;
+            $('#meta').text('author=' + r.data.author + ', commits=' + r.data.commitCount + ', files=' + r.data.filesChanged);
+            $('#summaryText').text(r.data.generatedText || '');
+        }).fail(function(xhr) {
+            alert(xhr.responseJSON ? xhr.responseJSON.message : '요약 생성 실패');
+        });
+    }
+
+    function broadcastSummary() {
+        var roomId = $('#roomSelect').val();
+        var author = $('#authorInput').val().trim();
+        if (!roomId) {
+            alert('전송할 채팅방을 선택하세요.');
+            return;
+        }
+        $.post('/api/worklog/today/broadcast/' + roomId + '?author=' + encodeURIComponent(author), function(r) {
+            alert('전송 완료: roomId=' + r.data.roomId + ', commits=' + r.data.commitCount);
+        }).fail(function(xhr) {
+            alert(xhr.responseJSON ? xhr.responseJSON.message : '전송 실패');
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(text));
+        return div.innerHTML;
+    }
+</script>
+</body>
+</html>
+

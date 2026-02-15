@@ -1,6 +1,5 @@
 package com.messenger.user.service;
 
-import com.messenger.chat.service.ChatPresenceService;
 import com.messenger.common.exception.BusinessException;
 import com.messenger.common.exception.ErrorCode;
 import com.messenger.user.dto.LoginRequest;
@@ -29,7 +28,6 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ChatPresenceService chatPresenceService;
 
     @Transactional
     public UserResponse login(LoginRequest request, HttpSession session) {
@@ -59,12 +57,6 @@ public class AuthService {
         session.setAttribute("role", user.getRole().name());
 
         user.updateStatus(UserStatus.ONLINE);
-        try {
-            chatPresenceService.setOnline(user.getId());
-        } catch (Exception e) {
-            log.warn("[login] failed to update redis presence. userId={}, reason={}", user.getId(), e.getMessage());
-        }
-
         log.info("[login] userId={}, username={}, sessionId={}", user.getId(), user.getUsername(), session.getId());
         return UserResponse.from(user);
     }
@@ -76,11 +68,6 @@ public class AuthService {
 
         if (userId != null) {
             userRepository.findById(userId).ifPresent(u -> u.updateStatus(UserStatus.OFFLINE));
-            try {
-                chatPresenceService.setOffline(userId);
-            } catch (Exception e) {
-                log.warn("[logout] failed to update redis presence. userId={}, reason={}", userId, e.getMessage());
-            }
         }
 
         log.info("[logout] username={}, sessionId={}", username, session.getId());

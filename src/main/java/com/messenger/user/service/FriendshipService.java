@@ -1,6 +1,5 @@
 package com.messenger.user.service;
 
-import com.messenger.chat.service.ChatPresenceService;
 import com.messenger.common.exception.BusinessException;
 import com.messenger.common.exception.ErrorCode;
 import com.messenger.notification.entity.NotificationType;
@@ -28,7 +27,6 @@ public class FriendshipService {
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
-    private final ChatPresenceService chatPresenceService;
 
     @Transactional
     public FriendshipResponse sendFriendRequest(Long requesterId, Long receiverId) {
@@ -172,13 +170,7 @@ public class FriendshipService {
                 .findAllByUserIdAndStatus(userId, FriendshipStatus.ACCEPTED);
 
         return friendships.stream()
-                .map(f -> {
-                    Long friendId = f.getRequester().getId().equals(userId)
-                            ? f.getReceiver().getId()
-                            : f.getRequester().getId();
-                    boolean online = chatPresenceService.isOnline(friendId);
-                    return FriendshipResponse.from(f, userId, online);
-                })
+                .map(f -> FriendshipResponse.from(f, userId))
                 .collect(Collectors.toList());
     }
 

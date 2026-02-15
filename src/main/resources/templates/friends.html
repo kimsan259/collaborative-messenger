@@ -21,6 +21,7 @@
             <a th:href="@{/profile}" class="nav-user" style="text-decoration:none;" th:text="${displayName}">User</a>
             <a th:href="@{/chat/rooms}" class="nav-btn">Chat</a>
             <a th:href="@{/reports}" class="nav-btn">Reports</a>
+            <a th:href="@{/worklog}" class="nav-btn">Worklog</a>
             <a th:href="@{/auth/logout}" class="nav-btn">Logout</a>
         </div>
     </nav>
@@ -30,7 +31,6 @@
             <h2 class="section-title">Friends</h2>
             <p class="section-sub">Manage your connections</p>
             <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
-                <span id="myPresenceBadge" class="badge-narsil badge-purple">My status: checking...</span>
                 <button class="btn-ghost" style="font-size:12px; padding:4px 10px;" onclick="refreshFriendData()">Refresh now</button>
             </div>
         </div>
@@ -93,11 +93,9 @@
             loadFriends();
             loadReceivedRequests();
             loadSentRequests();
-            checkMyPresence();
             $('#searchKeyword').on('keypress', function(e) { if (e.which === 13) searchUsers(); });
             setInterval(function() {
                 loadFriends();
-                checkMyPresence();
             }, 10000);
         });
 
@@ -105,21 +103,6 @@
             loadFriends();
             loadReceivedRequests();
             loadSentRequests();
-            checkMyPresence();
-        }
-
-        function checkMyPresence() {
-            $.get('/api/presence/me', function(r) {
-                var online = r.data && r.data.online;
-                var badge = $('#myPresenceBadge');
-                if (online) {
-                    badge.removeClass('badge-purple').addClass('badge-green').text('My status: Online');
-                } else {
-                    badge.removeClass('badge-green').addClass('badge-purple').text('My status: Offline');
-                }
-            }).fail(function(xhr) {
-                console.error('[presence] check failed:', xhr.status, xhr.responseText);
-            });
         }
 
         function switchTab(tab, btn) {
@@ -145,17 +128,13 @@
             return div.innerHTML;
         }
 
-        function renderItem(name, username, rightHtml, profileImage, online) {
-            var statusHtml = online === undefined ? '' :
-                (online
-                    ? '<span class="badge-narsil badge-green" style="margin-left:8px;">Online</span>'
-                    : '<span class="badge-narsil badge-purple" style="margin-left:8px;">Offline</span>');
+        function renderItem(name, username, rightHtml, profileImage) {
             return '<div class="narsil-list-item">' +
                    '  <div class="d-flex align-items-center gap-8">' +
                    avatarHtml(profileImage, name) +
                    '    <div><span style="font-weight:600;">' + escapeHtml(name) + '</span>' +
                    '    <span style="color:var(--text-muted); font-size:12px; margin-left:8px;">@' + escapeHtml(username) + '</span>' +
-                   statusHtml + '</div>' +
+                   '</div>' +
                    '  </div>' +
                    '  <div>' + rightHtml + '</div></div>';
         }
@@ -170,8 +149,7 @@
                         '<button class="btn-narsil btn-narsil-sm" style="margin-right:6px;" onclick="viewProfile(' + f.friendId + ')">Profile</button>' +
                         '<button class="btn-narsil btn-narsil-sm" style="margin-right:6px;" onclick="startDm(' + f.friendId + ')">Message</button>' +
                         '<button class="btn-ghost btn-ghost-danger" onclick="removeFriend(' + f.friendshipId + ')">Remove</button>',
-                        f.friendProfileImage,
-                        f.online));
+                        f.friendProfileImage));
                 });
             }).fail(function(xhr) {
                 console.error('[friends] load friends failed:', xhr.status, xhr.responseText);

@@ -84,3 +84,8 @@ server:
 app:
   upload:
     dir: ${APP_UPLOAD_DIR:uploads}
+  worklog:
+    owner: ${WORKLOG_OWNER:kimsan259}
+    repo: ${WORKLOG_REPO:collaborative-messenger}
+    default-author: ${WORKLOG_DEFAULT_AUTHOR:kimsan4515}
+    github-token: ${WORKLOG_GITHUB_TOKEN:}

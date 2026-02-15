@@ -1,6 +1,5 @@
 package com.messenger.infrastructure.websocket;
 
-import com.messenger.chat.service.ChatPresenceService;
 import com.messenger.user.entity.UserStatus;
 import com.messenger.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +15,6 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 @RequiredArgsConstructor
 public class WebSocketEventListener {
 
-    private final ChatPresenceService chatPresenceService;
     private final UserRepository userRepository;
 
     @EventListener
@@ -27,7 +25,6 @@ public class WebSocketEventListener {
         log.info("[WebSocket connect] sessionId={}, userId={}", accessor.getSessionId(), userId);
 
         if (userId != null) {
-            chatPresenceService.setOnline(userId);
             userRepository.findById(userId).ifPresent(user -> user.updateStatus(UserStatus.ONLINE));
         }
     }
@@ -40,7 +37,6 @@ public class WebSocketEventListener {
         log.info("[WebSocket disconnect] sessionId={}, userId={}", accessor.getSessionId(), userId);
 
         if (userId != null) {
-            chatPresenceService.setOffline(userId);
             userRepository.findById(userId).ifPresent(user -> user.updateStatus(UserStatus.OFFLINE));
         }
     }
