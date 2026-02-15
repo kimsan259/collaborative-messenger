@@ -1,183 +1,91 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Narsil - Create Account</title>
     <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Pretendard:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Pretendard', sans-serif;
-            background: #05070f;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow-y: auto;
-        }
-        .space-bg {
-            position: fixed;
-            inset: 0;
-            background:
-                radial-gradient(circle at 10% 15%, rgba(56,189,248,0.25), transparent 40%),
-                radial-gradient(circle at 85% 10%, rgba(192,132,252,0.22), transparent 36%),
-                radial-gradient(circle at 85% 90%, rgba(244,63,94,0.2), transparent 35%),
-                linear-gradient(180deg, #05070f, #060814 40%, #05070f);
-            z-index: 0;
-        }
-        .register-card {
-            position: relative;
-            z-index: 1;
-            width: 100%;
-            max-width: 560px;
-            margin: 30px 16px;
-            padding: 34px;
-            border-radius: 24px;
-            border: 1px solid rgba(255,255,255,0.14);
-            background: rgba(9, 12, 29, 0.82);
-            backdrop-filter: blur(18px);
-            box-shadow: 0 24px 80px rgba(2,6,23,0.7), inset 0 1px 0 rgba(255,255,255,0.08);
-        }
-        .title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 34px;
-            font-weight: 800;
-            letter-spacing: .8px;
-            background: linear-gradient(90deg, #ecfeff, #93c5fd 45%, #f9a8d4 90%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 8px;
-        }
-        .sub { color: rgba(255,255,255,0.72); margin-bottom: 24px; }
-
-        .msg { display: none; padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; font-size: 14px; }
-        .msg.show { display: block; }
-        .msg.error { background: rgba(220,38,38,0.2); border: 1px solid rgba(248,113,113,0.45); color: #fecaca; }
-        .msg.success { background: rgba(22,163,74,0.2); border: 1px solid rgba(74,222,128,0.45); color: #dcfce7; }
-
-        .field { margin-bottom: 14px; }
-        .label { display: block; color: rgba(255,255,255,0.84); margin-bottom: 7px; font-weight: 600; }
-        .input {
-            width: 100%;
-            padding: 13px 14px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.2);
-            background: rgba(255,255,255,0.06);
-            color: #fff;
-            outline: none;
-        }
-        .input:focus { border-color: rgba(99,102,241,0.85); box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
-
-        .row2 { display: grid; grid-template-columns: 1fr 160px; gap: 10px; }
-        .btn {
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 12px;
-            padding: 12px 14px;
-            font-weight: 700;
-            cursor: pointer;
-            color: #fff;
-            background: rgba(255,255,255,0.08);
-        }
-        .btn:hover { transform: translateY(-1px); }
-        .btn-main {
-            width: 100%;
-            margin-top: 8px;
-            border-color: rgba(99,102,241,0.75);
-            background: linear-gradient(135deg, #7c3aed, #2563eb);
-        }
-        .btn-verify { border-color: rgba(34,197,94,0.7); background: linear-gradient(135deg, rgba(22,163,74,0.4), rgba(21,128,61,0.4)); }
-
-        .verify-state {
-            margin-top: 8px;
-            font-size: 13px;
-            color: #fde68a;
-        }
-        .verify-state.ok { color: #86efac; }
-
-        .footer { margin-top: 20px; color: rgba(255,255,255,0.6); }
-        .footer a { color: #a5b4fc; text-decoration: none; }
-
-        @media (max-width: 640px) {
-            .title { font-size: 26px; }
-            .register-card { padding: 22px; }
-            .row2 { grid-template-columns: 1fr; }
-        }
-    </style>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
-<body>
-<div class="space-bg"></div>
+<body class="page-border auth-shell">
+<div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+</div>
 
-<div class="register-card">
-    <h1 class="title">JOIN NARSIL CORE</h1>
-    <p class="sub">가입 전에 이메일 인증을 완료해야 회원가입이 가능합니다.</p>
+<div class="glass-card auth-card wide" style="position:relative; z-index:1;">
+    <div class="brand-mark">
+        <span style="font-family:var(--font-display); font-weight:900; letter-spacing:1px; color:rgba(234,255,255,0.96);">N</span>
+    </div>
 
-    <div id="errorMessage" class="msg error"></div>
-    <div id="successMessage" class="msg success"></div>
+    <h1 class="brand-title">JOIN NARSIL CORE</h1>
+    <p class="brand-sub">가입 전에 이메일 인증을 완료해야 회원가입이 가능합니다.</p>
+
+    <div id="errorMessage" class="error-msg"></div>
+    <div id="successMessage" class="notice" style="display:none;"></div>
 
     <form id="registerForm">
-        <div class="field">
-            <label class="label">Username</label>
-            <input type="text" class="input" id="username" required minlength="3" placeholder="unique username">
+        <div style="margin-bottom:14px;">
+            <label class="form-label">Username</label>
+            <input type="text" class="narsil-input" id="username" required minlength="3" placeholder="unique username">
         </div>
 
-        <div class="field">
-            <label class="label">Password</label>
-            <input type="password" class="input" id="password" required minlength="4" placeholder="at least 4 characters">
+        <div style="margin-bottom:14px;">
+            <label class="form-label">Password</label>
+            <input type="password" class="narsil-input" id="password" required minlength="4" placeholder="at least 4 characters">
         </div>
 
-        <div class="field">
-            <label class="label">Display Name</label>
-            <input type="text" class="input" id="displayName" required placeholder="name shown in chats">
+        <div style="margin-bottom:14px;">
+            <label class="form-label">Display Name</label>
+            <input type="text" class="narsil-input" id="displayName" required placeholder="name shown in chats">
         </div>
 
-        <div class="field">
-            <label class="label">Email (인증 필수)</label>
-            <div class="row2">
-                <input type="email" class="input" id="email" required placeholder="you@company.com">
-                <button type="button" id="sendCodeBtn" class="btn">인증 메일 전송</button>
+        <div style="margin-bottom:14px;">
+            <label class="form-label">Email (인증 필수)</label>
+            <div style="display:grid; grid-template-columns: 1fr 160px; gap: 10px;">
+                <input type="email" class="narsil-input" id="email" required placeholder="you@company.com">
+                <button type="button" id="sendCodeBtn" class="btn-ghost" style="font-weight:900;">인증 메일 전송</button>
             </div>
         </div>
 
-        <div class="field">
-            <label class="label">Email Code</label>
-            <div class="row2">
-                <input type="text" class="input" id="emailCode" maxlength="6" placeholder="메일로 받은 6자리 인증번호">
-                <button type="button" id="verifyCodeBtn" class="btn btn-verify">인증번호 확인</button>
+        <div style="margin-bottom:10px;">
+            <label class="form-label">Email Code</label>
+            <div style="display:grid; grid-template-columns: 1fr 160px; gap: 10px;">
+                <input type="text" class="narsil-input" id="emailCode" maxlength="6" placeholder="메일로 받은 6자리 인증번호">
+                <button type="button" id="verifyCodeBtn" class="btn-narsil btn-narsil-sm" style="width:100%;">인증번호 확인</button>
             </div>
-            <div id="verifyState" class="verify-state">이메일 인증 필요</div>
+            <div id="verifyState" style="margin-top:8px; font-size:13px; color:rgba(255,236,190,0.95);">이메일 인증 필요</div>
         </div>
 
-        <button type="submit" class="btn btn-main" id="registerBtn">Create Account</button>
+        <button type="submit" class="btn-narsil" id="registerBtn" style="width:100%; margin-top:10px;">Create Account</button>
     </form>
 
-    <div class="footer">
+    <div class="auth-footer">
         이미 계정이 있나요? <a th:href="@{/auth/login}">Sign In</a>
     </div>
 </div>
+
+<div class="brand-footer">Narsil Messenger</div>
 
 <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
 <script>
     var emailVerified = false;
 
     function showError(message) {
-        $('#successMessage').removeClass('show');
+        $('#successMessage').hide();
         $('#errorMessage').text(message).addClass('show');
     }
 
     function showSuccess(message) {
         $('#errorMessage').removeClass('show');
-        $('#successMessage').text(message).addClass('show');
+        $('#successMessage').text(message).show();
     }
 
     $('#sendCodeBtn').on('click', function() {
         var email = $('#email').val().trim();
         if (!email) {
-            showError('이메일을 입력해주세요.');
+            showError('이메일을 입력해 주세요.');
             return;
         }
 
@@ -193,11 +101,11 @@
                 emailVerified = false;
                 if (res.data && res.data.debugCode) {
                     $('#emailCode').val(res.data.debugCode);
-                    $('#verifyState').removeClass('ok').text('인증번호가 자동 입력되었습니다. 인증번호 확인 버튼을 눌러주세요.');
-                    showSuccess('인증 코드가 발급되었습니다. 인증번호 확인 버튼을 눌러주세요.');
+                    $('#verifyState').css('color', 'rgba(255,236,190,0.95)').text('인증번호가 자동 입력되었습니다. 인증번호 확인을 눌러주세요.');
+                    showSuccess('인증번호가 발급되었습니다. 인증번호 확인을 눌러주세요.');
                 } else {
-                    $('#verifyState').removeClass('ok').text('인증번호를 입력하고 인증번호 확인 버튼을 눌러주세요.');
-                    showSuccess('인증 코드를 이메일로 전송했습니다. 메일에서 받은 6자리 코드를 입력해주세요.');
+                    $('#verifyState').css('color', 'rgba(255,236,190,0.95)').text('메일로 받은 인증번호를 입력하고 인증번호 확인을 눌러주세요.');
+                    showSuccess('인증 메일을 전송했습니다. 메일로 받은 6자리 코드를 입력해 주세요.');
                 }
             },
             error: function(xhr) {
@@ -214,7 +122,7 @@
         var code = $('#emailCode').val().trim();
 
         if (!email || !code) {
-            showError('이메일과 인증 코드를 모두 입력해주세요.');
+            showError('이메일과 인증 코드를 모두 입력해 주세요.');
             return;
         }
 
@@ -228,12 +136,12 @@
             data: JSON.stringify({ email: email, code: code }),
             success: function() {
                 emailVerified = true;
-                $('#verifyState').addClass('ok').text('이메일 인증 완료');
+                $('#verifyState').css('color', 'rgba(185,255,220,0.96)').text('이메일 인증 완료');
                 showSuccess('이메일 인증이 완료되었습니다.');
             },
             error: function(xhr) {
                 emailVerified = false;
-                $('#verifyState').removeClass('ok').text('이메일 인증 필요');
+                $('#verifyState').css('color', 'rgba(255,236,190,0.95)').text('이메일 인증 필요');
                 showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '인증번호 확인에 실패했습니다.');
             },
             complete: function() {
@@ -244,14 +152,14 @@
 
     $('#email').on('input', function() {
         emailVerified = false;
-        $('#verifyState').removeClass('ok').text('이메일 인증 필요');
+        $('#verifyState').css('color', 'rgba(255,236,190,0.95)').text('이메일 인증 필요');
     });
 
     $('#registerForm').on('submit', function(e) {
         e.preventDefault();
 
         if (!emailVerified) {
-            showError('회원가입 전에 이메일 인증을 완료해주세요.');
+            showError('회원가입 전에 이메일 인증을 완료해 주세요.');
             return;
         }
 
@@ -269,16 +177,20 @@
                 email: $('#email').val().trim()
             }),
             success: function() {
-                showSuccess('Account created successfully! Redirecting...');
+                showSuccess('계정이 생성되었습니다. 로그인 페이지로 이동합니다...');
                 setTimeout(function() {
                     window.location.href = '/auth/login';
-                }, 1300);
+                }, 1200);
             },
             error: function(xhr) {
-                showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Registration failed.');
+                showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '회원가입에 실패했습니다.');
                 btn.prop('disabled', false).text('Create Account');
             }
         });
+    });
+
+    $('input').on('input', function() {
+        $('#errorMessage').removeClass('show');
     });
 </script>
 </body>
