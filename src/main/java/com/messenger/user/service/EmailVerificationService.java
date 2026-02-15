@@ -47,21 +47,20 @@ public class EmailVerificationService {
                 .build();
         emailVerificationRepository.save(entity);
 
+        boolean mailSent = false;
         try {
             mailSender.send(email,
                     "[Narsil] Email verification code",
                     "Your verification code is: " + code + "\nThis code expires in " + codeTtlMinutes + " minutes.");
+            mailSent = true;
         } catch (Exception e) {
-            log.warn("[email-verification] mail send failed. email={}, reason={}", email, e.getMessage());
-            if (!debugExposeCode) {
-                throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_SEND_FAILED);
-            }
+            log.warn("[email-verification] mail send failed, falling back to code response. email={}, reason={}", email, e.getMessage());
         }
 
-        if (debugExposeCode) {
-            return Map.of("email", email, "expiresAt", expiresAt, "debugCode", code);
+        if (mailSent && !debugExposeCode) {
+            return Map.of("email", email, "expiresAt", expiresAt);
         }
-        return Map.of("email", email, "expiresAt", expiresAt);
+        return Map.of("email", email, "expiresAt", expiresAt, "debugCode", code);
     }
 
     @Transactional
