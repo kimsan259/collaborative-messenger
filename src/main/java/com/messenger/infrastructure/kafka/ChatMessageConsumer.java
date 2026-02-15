@@ -30,7 +30,8 @@ public class ChatMessageConsumer {
     @KafkaListener(
             topics = "chat.message.sent",
             groupId = "${spring.kafka.consumer.group-id}",
-            containerFactory = "kafkaListenerContainerFactory"
+            containerFactory = "kafkaListenerContainerFactory",
+            autoStartup = "false"
     )
     public void consumeMessage(String jsonMessage) {
         try {

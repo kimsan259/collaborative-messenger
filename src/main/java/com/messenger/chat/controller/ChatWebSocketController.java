@@ -2,7 +2,7 @@ package com.messenger.chat.controller;
 
 import com.messenger.chat.dto.ChatMessageRequest;
 import com.messenger.chat.event.ChatMessageEvent;
-import com.messenger.infrastructure.kafka.ChatMessageProducer;
+import com.messenger.infrastructure.kafka.ChatMessageConsumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -63,7 +63,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class ChatWebSocketController {
 
-    private final ChatMessageProducer chatMessageProducer;
+    private final ChatMessageConsumer chatMessageConsumer;
 
     /**
      * 【채팅 메시지 수신 핸들러】
@@ -101,10 +101,8 @@ public class ChatWebSocketController {
                 .sentAt(LocalDateTime.now())
                 .build();
 
-        // ===== Kafka에 발행 (비동기) =====
-        // 이 시점에서 메시지가 Kafka 토픽으로 전달됩니다.
-        // ChatMessageConsumer가 이 메시지를 소비하여 DB 저장 + 브로드캐스트를 처리합니다.
-        chatMessageProducer.sendMessage(event);
+        // Railway 단일 배포 환경에서는 Kafka를 거치지 않고 즉시 처리합니다.
+        chatMessageConsumer.consumeEvent(event);
     }
 
     /**

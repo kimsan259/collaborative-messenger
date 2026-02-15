@@ -6,10 +6,8 @@ import com.messenger.chat.event.ChatMessageEvent;
 import com.messenger.chat.service.ChatMessageService;
 import com.messenger.common.dto.ApiResponse;
 import com.messenger.infrastructure.kafka.ChatMessageConsumer;
-import com.messenger.infrastructure.kafka.ChatMessageProducer;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -24,7 +22,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Slf4j
 @RestController
 @RequestMapping("/api/chat/rooms")
 @RequiredArgsConstructor
@@ -33,11 +30,8 @@ public class ChatMessageController {
     private static final long MAX_UPLOAD_SIZE = 20 * 1024 * 1024L;
 
     private final ChatMessageService chatMessageService;
-    private final ChatMessageProducer chatMessageProducer;
     private final ChatMessageConsumer chatMessageConsumer;
 
-    @Value("${spring.kafka.listener.auto-startup:true}")
-    private boolean kafkaListenerAutoStartup;
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
 
@@ -127,17 +121,6 @@ public class ChatMessageController {
                 .sentAt(LocalDateTime.now())
                 .build();
 
-        if (!kafkaListenerAutoStartup) {
-            chatMessageConsumer.consumeEvent(event);
-            return;
-        }
-
-        try {
-            chatMessageProducer.sendMessage(event);
-        } catch (Exception e) {
-            log.warn("[chat-send] kafka publish failed. fallback to direct consume. roomId={}, reason={}",
-                    roomId, e.getMessage());
-            chatMessageConsumer.consumeEvent(event);
-        }
+        chatMessageConsumer.consumeEvent(event);
     }
 }
