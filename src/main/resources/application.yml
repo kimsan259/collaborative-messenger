@@ -48,9 +48,9 @@ datasource:
     password: ${DATASOURCE_SHARD0_PASSWORD:messenger1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
   shard1:
-    url: ${DATASOURCE_SHARD1_URL:jdbc:mysql://localhost:3308/messenger_shard_1?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true}
-    username: ${DATASOURCE_SHARD1_USERNAME:messenger}
-    password: ${DATASOURCE_SHARD1_PASSWORD:messenger1234}
+    url: ${DATASOURCE_SHARD1_URL:${DATASOURCE_SHARD0_URL:jdbc:mysql://localhost:3307/messenger_shard_0?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true}}
+    username: ${DATASOURCE_SHARD1_USERNAME:${DATASOURCE_SHARD0_USERNAME:messenger}}
+    password: ${DATASOURCE_SHARD1_PASSWORD:${DATASOURCE_SHARD0_PASSWORD:messenger1234}}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 report:
