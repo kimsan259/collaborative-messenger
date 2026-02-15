@@ -34,7 +34,7 @@
             -webkit-text-fill-color: transparent;
         }
         .worklog-sub { margin-top: 8px; color: rgba(255,255,255,0.78); font-size: 20px; font-weight: 500; }
-        .worklog-grid { display:grid; grid-template-columns: 1fr 1fr 170px 170px; gap: 12px; margin-top: 22px; }
+        .worklog-grid { display:grid; grid-template-columns: 1fr 1fr 190px 190px; gap: 12px; margin-top: 22px; }
         .worklog-btn-primary {
             border-radius: 13px; border: 1px solid rgba(99,102,241,0.8);
             background: linear-gradient(135deg, #7c3aed, #2563eb); color:#fff; font-weight:700;
@@ -43,6 +43,70 @@
             border-radius: 13px; border: 1px solid rgba(34,197,94,0.55);
             background: linear-gradient(135deg, rgba(20,184,121,0.35), rgba(6,78,59,0.35)); color:#dcfce7; font-weight:700;
         }
+        .worklog-btn-primary:disabled,
+        .worklog-btn-accent:disabled {
+            opacity: .7;
+            cursor: not-allowed;
+        }
+
+        .process-panel {
+            margin-top: 14px;
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 16px;
+            padding: 14px;
+            background: rgba(255,255,255,0.04);
+        }
+        .process-row {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .process-step {
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 8px 10px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.72);
+            background: rgba(255,255,255,0.03);
+            transition: all .18s ease;
+        }
+        .process-step.active {
+            color: #e6f4ff;
+            border-color: rgba(59,130,246,0.7);
+            background: rgba(37,99,235,0.22);
+            box-shadow: 0 0 0 1px rgba(37,99,235,0.25) inset;
+        }
+        .process-step.done {
+            color: #dcfce7;
+            border-color: rgba(34,197,94,0.65);
+            background: rgba(22,163,74,0.2);
+        }
+        .process-step.fail {
+            color: #fecaca;
+            border-color: rgba(248,113,113,0.65);
+            background: rgba(220,38,38,0.22);
+        }
+        .process-status {
+            margin-top: 10px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .process-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #60a5fa;
+            box-shadow: 0 0 0 6px rgba(59,130,246,0.2);
+            animation: pulseDot 1.2s ease-in-out infinite;
+        }
+        @keyframes pulseDot {
+            0%, 100% { transform: scale(1); opacity: .9; }
+            50% { transform: scale(1.22); opacity: 1; }
+        }
+
         .worklog-panel {
             margin-top: 20px;
             border: 1px solid rgba(255,255,255,0.14);
@@ -75,12 +139,54 @@
         .commit-card .meta { font-size: 13px; color: var(--text-muted); margin: 4px 0 8px; }
         .commit-card a { color: #b3c6ff; text-decoration: none; }
 
-        @media (max-width: 1024px) { .worklog-title { font-size: 42px; } .worklog-grid { grid-template-columns: 1fr 1fr; } }
+        .toast-wrap {
+            position: fixed;
+            top: 82px;
+            right: 20px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .narsil-toast {
+            min-width: 280px;
+            max-width: 420px;
+            border-radius: 14px;
+            padding: 12px 14px;
+            border: 1px solid rgba(255,255,255,0.16);
+            background: rgba(8,12,28,0.94);
+            color: #e5e7eb;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+            font-size: 14px;
+            line-height: 1.5;
+            animation: slideIn .18s ease;
+        }
+        .narsil-toast.success {
+            border-color: rgba(34,197,94,0.55);
+            background: linear-gradient(145deg, rgba(7,30,20,0.95), rgba(7,20,14,0.95));
+        }
+        .narsil-toast.error {
+            border-color: rgba(248,113,113,0.55);
+            background: linear-gradient(145deg, rgba(35,10,14,0.95), rgba(28,9,12,0.95));
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 1024px) {
+            .worklog-title { font-size: 42px; }
+            .worklog-grid { grid-template-columns: 1fr 1fr; }
+            .process-row { grid-template-columns: 1fr 1fr; }
+        }
         @media (max-width: 640px) {
             .worklog-title { font-size: 30px; }
             .worklog-sub { font-size: 15px; }
             #summaryText { font-size: 17px; line-height: 1.75; }
             .worklog-grid { grid-template-columns: 1fr; }
+            .process-row { grid-template-columns: 1fr; }
+            .toast-wrap { left: 14px; right: 14px; top: 72px; }
+            .narsil-toast { max-width: none; min-width: 0; }
         }
     </style>
 </head>
@@ -108,8 +214,21 @@
         <div class="worklog-grid">
             <input id="authorInput" class="narsil-input" th:value="${fixedAuthor}" readonly>
             <select id="friendSelect" class="form-select narsil-input"></select>
-            <button class="btn worklog-btn-primary" onclick="loadSummary()">요약 생성</button>
-            <button class="btn worklog-btn-accent" onclick="broadcastSummary()">친구에게 전송</button>
+            <button id="summaryBtn" class="btn worklog-btn-primary" onclick="loadSummary()">요약 생성</button>
+            <button id="broadcastBtn" class="btn worklog-btn-accent" onclick="broadcastSummary()">친구에게 전송</button>
+        </div>
+
+        <div class="process-panel" id="processPanel" style="display:none;">
+            <div class="process-row">
+                <div class="process-step" data-step="1">1) 요청 접수</div>
+                <div class="process-step" data-step="2">2) GitHub 커밋 조회</div>
+                <div class="process-step" data-step="3">3) 브리핑 구성</div>
+                <div class="process-step" data-step="4">4) 완료</div>
+            </div>
+            <div class="process-status" id="processStatus">
+                <span class="process-dot"></span>
+                <span id="processStatusText">처리 준비 중...</span>
+            </div>
         </div>
     </div>
 
@@ -124,6 +243,8 @@
     </div>
 </div>
 
+<div class="toast-wrap" id="toastWrap"></div>
+
 <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
 <script>
     var latestSummary = null;
@@ -132,6 +253,68 @@
         loadFriends();
         loadSummary();
     });
+
+    function setBusy(isBusy, mode) {
+        var $summaryBtn = $('#summaryBtn');
+        var $broadcastBtn = $('#broadcastBtn');
+        $summaryBtn.prop('disabled', isBusy);
+        $broadcastBtn.prop('disabled', isBusy);
+        if (isBusy) {
+            if (mode === 'summary') {
+                $summaryBtn.text('요약 생성 중...');
+            }
+            if (mode === 'broadcast') {
+                $broadcastBtn.text('전송 중...');
+            }
+        } else {
+            $summaryBtn.text('요약 생성');
+            $broadcastBtn.text('친구에게 전송');
+        }
+    }
+
+    function showToast(type, text) {
+        var id = 't' + Date.now();
+        var cls = type === 'success' ? 'success' : 'error';
+        var html = '<div id="' + id + '" class="narsil-toast ' + cls + '">' + escapeHtml(text) + '</div>';
+        $('#toastWrap').prepend(html);
+        setTimeout(function() {
+            $('#' + id).fadeOut(220, function() { $(this).remove(); });
+        }, 3200);
+    }
+
+    function resetProcess() {
+        $('#processPanel').show();
+        $('.process-step').removeClass('active done fail');
+        $('#processStatusText').text('처리 준비 중...');
+    }
+
+    function stepActive(step, text) {
+        $('.process-step').removeClass('active');
+        $('.process-step[data-step="' + step + '"]').addClass('active');
+        if (text) {
+            $('#processStatusText').text(text);
+        }
+    }
+
+    function stepDone(step) {
+        $('.process-step[data-step="' + step + '"]').removeClass('active fail').addClass('done');
+    }
+
+    function stepFail(step, text) {
+        $('.process-step[data-step="' + step + '"]').removeClass('active done').addClass('fail');
+        $('#processStatusText').text(text || '실패했습니다.');
+    }
+
+    function finishProcess(success, text) {
+        if (success) {
+            stepDone(4);
+            $('#processStatusText').text(text || '완료되었습니다.');
+            showToast('success', text || '작업이 완료되었습니다.');
+        } else {
+            stepFail(4, text || '작업에 실패했습니다.');
+            showToast('error', text || '작업에 실패했습니다.');
+        }
+    }
 
     function loadFriends() {
         $.get('/api/worklog/friends', function(r) {
@@ -146,13 +329,22 @@
                 sel.append('<option value="' + friend.friendId + '">' + escapeHtml(label) + '</option>');
             });
         }).fail(function(xhr) {
-            alert(xhr.responseJSON ? xhr.responseJSON.message : '친구 목록 조회 실패');
+            showToast('error', xhr.responseJSON ? xhr.responseJSON.message : '친구 목록 조회 실패');
         });
     }
 
     function loadSummary() {
         var author = $('#authorInput').val().trim();
+        resetProcess();
+        setBusy(true, 'summary');
+
+        stepActive(1, '요약 생성 요청을 접수했습니다.');
+        setTimeout(function(){ stepDone(1); stepActive(2, 'GitHub 커밋 내역을 조회하는 중입니다...'); }, 120);
+
         $.get('/api/worklog/today?author=' + encodeURIComponent(author), function(r) {
+            stepDone(2);
+            stepActive(3, '커밋을 분석해 브리핑을 구성하는 중입니다...');
+
             latestSummary = r.data;
             $('#meta').html(
                 '<span class="metric-chip">author: ' + escapeHtml(r.data.author) + '</span>' +
@@ -162,8 +354,15 @@
             );
             $('#summaryText').text(r.data.generatedText || '요약 내용이 없습니다.');
             renderCommits(r.data.commits || []);
+
+            stepDone(3);
+            finishProcess(true, '요약 생성이 완료되었습니다.');
         }).fail(function(xhr) {
-            alert(xhr.responseJSON ? xhr.responseJSON.message : '요약 생성 실패');
+            var msg = xhr.responseJSON ? xhr.responseJSON.message : '요약 생성 실패';
+            stepFail(2, msg);
+            finishProcess(false, msg);
+        }).always(function() {
+            setBusy(false);
         });
     }
 
@@ -189,13 +388,27 @@
         var friendId = $('#friendSelect').val();
         var author = $('#authorInput').val().trim();
         if (!friendId) {
-            alert('전송할 친구를 선택하세요.');
+            showToast('error', '전송할 친구를 선택해주세요.');
             return;
         }
+
+        resetProcess();
+        setBusy(true, 'broadcast');
+
+        stepActive(1, '친구에게 전송 요청을 접수했습니다.');
+        setTimeout(function(){ stepDone(1); stepActive(2, '최신 브리핑을 생성하고 있습니다...'); }, 120);
+
         $.post('/api/worklog/today/broadcast/friend/' + friendId + '?author=' + encodeURIComponent(author), function(r) {
-            alert('전송 완료: friendId=' + r.data.friendId + ', roomId=' + r.data.roomId + ', commits=' + r.data.commitCount);
+            stepDone(2);
+            stepActive(3, '메시지로 브리핑을 전달하는 중입니다...');
+            stepDone(3);
+            finishProcess(true, '전송 완료: roomId=' + r.data.roomId + ', commits=' + r.data.commitCount);
         }).fail(function(xhr) {
-            alert(xhr.responseJSON ? xhr.responseJSON.message : '전송 실패');
+            var msg = xhr.responseJSON ? xhr.responseJSON.message : '전송 실패';
+            stepFail(3, msg);
+            finishProcess(false, msg);
+        }).always(function() {
+            setBusy(false);
         });
     }
 
