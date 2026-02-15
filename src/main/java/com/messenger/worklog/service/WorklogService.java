@@ -53,6 +53,7 @@ public class WorklogService {
 
         List<Map<String, Object>> commits = fetchCommitsByAuthor(requestedAuthor, since, until);
         boolean fallbackToRepoWide = false;
+        boolean fallbackToRecentWindow = false;
 
         if (commits.isEmpty()) {
             List<Map<String, Object>> repoCommits = fetchCommitsWithoutAuthor(since, until);
@@ -64,7 +65,24 @@ public class WorklogService {
             }
         }
 
-        return buildSummary(requestedAuthor, today, commits, fallbackToRepoWide);
+        if (commits.isEmpty()) {
+            OffsetDateTime recentSince = since.minusDays(2);
+            commits = fetchCommitsByAuthor(requestedAuthor, recentSince, until);
+            fallbackToRecentWindow = !commits.isEmpty();
+
+            if (commits.isEmpty()) {
+                List<Map<String, Object>> repoRecent = fetchCommitsWithoutAuthor(recentSince, until);
+                commits = filterByPossibleAuthor(repoRecent, requestedAuthor);
+                if (commits.isEmpty()) {
+                    commits = repoRecent;
+                    fallbackToRepoWide = !commits.isEmpty();
+                } else {
+                    fallbackToRecentWindow = true;
+                }
+            }
+        }
+
+        return buildSummary(requestedAuthor, today, commits, fallbackToRepoWide, fallbackToRecentWindow);
     }
 
     private List<Map<String, Object>> fetchCommitsByAuthor(String author, OffsetDateTime since, OffsetDateTime until) {
@@ -131,7 +149,8 @@ public class WorklogService {
             String requestedAuthor,
             LocalDate date,
             List<Map<String, Object>> commitsRaw,
-            boolean fallbackToRepoWide
+            boolean fallbackToRepoWide,
+            boolean fallbackToRecentWindow
     ) {
         List<String> featureChanges = new ArrayList<>();
         List<String> refactorChanges = new ArrayList<>();
@@ -178,6 +197,9 @@ public class WorklogService {
         if (fallbackToRepoWide) {
             comments.add("Author-matched commits were not found. Showing today's repository commits instead.");
             comments.add("Check your GitHub username in the author field.");
+        }
+        if (fallbackToRecentWindow) {
+            comments.add("No results in today's window. Showing commits from the recent 72 hours.");
         }
 
         if (commitItems.isEmpty()) {
