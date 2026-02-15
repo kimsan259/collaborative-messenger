@@ -43,6 +43,10 @@ public class WorklogService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
+    public String getDefaultAuthor() {
+        return defaultAuthor;
+    }
+
     public WorklogSummaryResponse generateTodaySummary(String authorOrNull) {
         String requestedAuthor = (authorOrNull == null || authorOrNull.isBlank())
                 ? defaultAuthor
@@ -53,38 +57,50 @@ public class WorklogService {
         OffsetDateTime since = today.atStartOfDay(zone).toOffsetDateTime();
         OffsetDateTime until = OffsetDateTime.now(zone);
 
-        List<Map<String, Object>> commits = fetchCommitsByAuthor(requestedAuthor, since, until);
-        boolean fallbackToRepoWide = false;
+        boolean fallbackToAllBranches = false;
         boolean fallbackToRecentWindow = false;
+        boolean fallbackToRepoWide = false;
+
+        List<Map<String, Object>> commits = fetchCommitsByAuthor(requestedAuthor, since, until);
 
         if (commits.isEmpty()) {
-            List<Map<String, Object>> repoCommits = fetchCommitsWithoutAuthor(since, until);
-            commits = filterByPossibleAuthor(repoCommits, requestedAuthor);
+            commits = fetchCommitsByAuthorAcrossBranches(requestedAuthor, since, until);
+            fallbackToAllBranches = !commits.isEmpty();
+        }
+
+        if (commits.isEmpty()) {
+            List<Map<String, Object>> repoTodayAcrossBranches = fetchCommitsAcrossBranches(since, until);
+            commits = filterByPossibleAuthor(repoTodayAcrossBranches, requestedAuthor);
+            fallbackToAllBranches = !commits.isEmpty();
 
             if (commits.isEmpty()) {
-                commits = repoCommits;
+                commits = repoTodayAcrossBranches;
                 fallbackToRepoWide = !commits.isEmpty();
             }
         }
 
         if (commits.isEmpty()) {
             OffsetDateTime recentSince = since.minusDays(2);
-            commits = fetchCommitsByAuthor(requestedAuthor, recentSince, until);
+            commits = fetchCommitsByAuthorAcrossBranches(requestedAuthor, recentSince, until);
             fallbackToRecentWindow = !commits.isEmpty();
 
             if (commits.isEmpty()) {
-                List<Map<String, Object>> repoRecent = fetchCommitsWithoutAuthor(recentSince, until);
-                commits = filterByPossibleAuthor(repoRecent, requestedAuthor);
-                if (commits.isEmpty()) {
-                    commits = repoRecent;
-                    fallbackToRepoWide = !commits.isEmpty();
-                } else {
+                List<Map<String, Object>> repoRecentAcrossBranches = fetchCommitsAcrossBranches(recentSince, until);
+                commits = filterByPossibleAuthor(repoRecentAcrossBranches, requestedAuthor);
+                if (!commits.isEmpty()) {
                     fallbackToRecentWindow = true;
+                }
+
+                if (commits.isEmpty()) {
+                    commits = repoRecentAcrossBranches;
+                    fallbackToRepoWide = !commits.isEmpty();
+                    fallbackToRecentWindow = !commits.isEmpty();
                 }
             }
         }
 
-        return buildSummary(requestedAuthor, today, commits, fallbackToRepoWide, fallbackToRecentWindow);
+        commits = dedupeCommitMapsBySha(commits);
+        return buildSummary(requestedAuthor, today, commits, fallbackToRepoWide, fallbackToRecentWindow, fallbackToAllBranches);
     }
 
     private List<Map<String, Object>> fetchCommitsByAuthor(String author, OffsetDateTime since, OffsetDateTime until) {
@@ -99,15 +115,72 @@ public class WorklogService {
         return fetchCommitList(url);
     }
 
-    private List<Map<String, Object>> fetchCommitsWithoutAuthor(OffsetDateTime since, OffsetDateTime until) {
+    private List<Map<String, Object>> fetchCommitsByAuthorAcrossBranches(String author, OffsetDateTime since, OffsetDateTime until) {
+        List<String> branches = fetchBranchNames();
+        List<Map<String, Object>> merged = new ArrayList<>();
+        for (String branch : branches) {
+            String url = UriComponentsBuilder
+                    .fromUriString("https://api.github.com/repos/{owner}/{repo}/commits")
+                    .queryParam("sha", branch)
+                    .queryParam("author", author)
+                    .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                    .queryParam("until", until.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                    .queryParam("per_page", 100)
+                    .buildAndExpand(owner, repo)
+                    .toUriString();
+            merged.addAll(fetchCommitList(url));
+        }
+        return dedupeCommitMapsBySha(merged);
+    }
+
+    private List<Map<String, Object>> fetchCommitsAcrossBranches(OffsetDateTime since, OffsetDateTime until) {
+        List<String> branches = fetchBranchNames();
+        List<Map<String, Object>> merged = new ArrayList<>();
+        for (String branch : branches) {
+            String url = UriComponentsBuilder
+                    .fromUriString("https://api.github.com/repos/{owner}/{repo}/commits")
+                    .queryParam("sha", branch)
+                    .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                    .queryParam("until", until.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                    .queryParam("per_page", 100)
+                    .buildAndExpand(owner, repo)
+                    .toUriString();
+            merged.addAll(fetchCommitList(url));
+        }
+        return dedupeCommitMapsBySha(merged);
+    }
+
+    private List<String> fetchBranchNames() {
         String url = UriComponentsBuilder
-                .fromUriString("https://api.github.com/repos/{owner}/{repo}/commits")
-                .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-                .queryParam("until", until.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-                .queryParam("per_page", 100)
+                .fromUriString("https://api.github.com/repos/{owner}/{repo}/branches")
+                .queryParam("per_page", 30)
                 .buildAndExpand(owner, repo)
                 .toUriString();
-        return fetchCommitList(url);
+
+        try {
+            HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
+            ResponseEntity<List> response = restTemplate.exchange(url, HttpMethod.GET, request, List.class);
+            if (response.getBody() == null) {
+                return List.of("main");
+            }
+
+            List<String> names = new ArrayList<>();
+            for (Object o : response.getBody()) {
+                if (o instanceof Map<?, ?> m) {
+                    Object n = m.get("name");
+                    if (n != null) {
+                        names.add(String.valueOf(n));
+                    }
+                }
+            }
+            if (names.isEmpty()) {
+                return List.of("main");
+            }
+            return names;
+        } catch (Exception e) {
+            log.warn("[worklog] failed to fetch branches. reason={}", e.getMessage());
+            return List.of("main");
+        }
     }
 
     private List<Map<String, Object>> fetchCommitList(String url) {
@@ -152,7 +225,8 @@ public class WorklogService {
             LocalDate date,
             List<Map<String, Object>> commitsRaw,
             boolean fallbackToRepoWide,
-            boolean fallbackToRecentWindow
+            boolean fallbackToRecentWindow,
+            boolean fallbackToAllBranches
     ) {
         List<String> featureChanges = new ArrayList<>();
         List<String> refactorChanges = new ArrayList<>();
@@ -210,21 +284,24 @@ public class WorklogService {
             }
         }
 
+        if (fallbackToAllBranches) {
+            comments.add("기본 브랜치에서 커밋을 찾지 못해 전체 브랜치 기준으로 집계했습니다.");
+        }
         if (fallbackToRepoWide) {
-            comments.add("작성자 일치 커밋이 없어 저장소 전체 커밋으로 대체했습니다.");
-            comments.add("author 값(깃허브 사용자명)을 다시 확인하세요.");
+            comments.add("작성자와 완전히 일치하는 커밋이 없어 저장소 전체 기준으로 집계했습니다.");
+            comments.add("author 값은 GitHub 사용자명과 정확히 일치해야 합니다.");
         }
         if (fallbackToRecentWindow) {
-            comments.add("오늘 범위 커밋이 없어 최근 72시간 커밋으로 확장 조회했습니다.");
+            comments.add("오늘 범위 커밋이 없어 최근 72시간으로 확장 조회했습니다.");
         }
 
         if (commitItems.isEmpty()) {
             comments.add("오늘 반영된 커밋이 없습니다.");
-            comments.add("점검: author 값 / 기본 브랜치 푸시 여부 / 시간대(Asia/Seoul)");
+            comments.add("점검: GitHub 토큰 / 브랜치 / author 값 / 푸시 여부 / 시간대(Asia/Seoul)");
         } else {
             comments.add("커밋 " + commitItems.size() + "건, 파일 " + totalFilesChanged + "개 변경");
-            comments.add("라인 변경: +" + totalAdditions + " / -" + totalDeletions);
-            comments.add("핵심 수정 영역: " + String.join(", ", topEntries(areaCounts, 4)));
+            comments.add("라인 변경 +" + totalAdditions + " / -" + totalDeletions);
+            comments.add("핵심 영향 영역: " + String.join(", ", topEntries(areaCounts, 4)));
         }
 
         String text = buildShareText(
@@ -266,12 +343,27 @@ public class WorklogService {
             Map<String, Object> commitMap = map(item.get("commit"));
             String authorName = string(map(commitMap.get("author")).get("name")).toLowerCase();
             String committerName = string(map(commitMap.get("committer")).get("name")).toLowerCase();
+            String authorEmail = string(map(commitMap.get("author")).get("email")).toLowerCase();
+            String committerEmail = string(map(commitMap.get("committer")).get("email")).toLowerCase();
 
             return authorLogin.contains(needle)
                     || committerLogin.contains(needle)
                     || authorName.contains(needle)
-                    || committerName.contains(needle);
+                    || committerName.contains(needle)
+                    || authorEmail.contains(needle)
+                    || committerEmail.contains(needle);
         }).collect(Collectors.toList());
+    }
+
+    private List<Map<String, Object>> dedupeCommitMapsBySha(List<Map<String, Object>> source) {
+        Map<String, Map<String, Object>> map = new LinkedHashMap<>();
+        for (Map<String, Object> item : source) {
+            String sha = string(item.get("sha"));
+            if (!sha.isBlank()) {
+                map.putIfAbsent(sha, item);
+            }
+        }
+        return new ArrayList<>(map.values());
     }
 
     public String buildShareText(WorklogSummaryResponse summary) {
@@ -290,42 +382,41 @@ public class WorklogService {
             List<String> topFiles
     ) {
         StringBuilder sb = new StringBuilder();
-        sb.append("[오늘 작업 공유] ").append(date).append(" / 담당: ").append(author).append("\n");
-        sb.append("저장소: ").append(owner).append("/").append(repo).append("\n\n");
+        sb.append("[오늘 작업 브리핑] ").append(date).append("\n");
+        sb.append("담당자: ").append(author).append("\n");
+        sb.append("저장소: ").append(owner).append("/").append(repo).append("\n");
+        sb.append("총 커밋: ").append(commits.size()).append("건\n\n");
 
         sb.append("1) 왜 변경했는가\n");
-        List<String> why = inferReasons(features, refactors, fixes, comments);
-        for (String line : why) {
+        for (String line : inferReasons(features, refactors, fixes, comments)) {
             sb.append("- ").append(line).append("\n");
         }
 
-        sb.append("\n2) 무엇을 수정했는가\n");
-        sb.append("- 커밋 수: ").append(commits.size()).append("\n");
+        sb.append("\n2) 핵심 변경 요약\n");
         if (!topAreas.isEmpty()) {
-            sb.append("- 주요 영역: ").append(String.join(", ", topAreas)).append("\n");
+            sb.append("- 영향 영역: ").append(String.join(", ", topAreas)).append("\n");
         }
         if (!topFiles.isEmpty()) {
-            sb.append("- 대표 파일: ").append(String.join(", ", topFiles)).append("\n");
+            sb.append("- 주요 파일: ").append(String.join(", ", topFiles)).append("\n");
         }
 
         if (!features.isEmpty()) {
             sb.append("- 기능 추가/개선\n");
-            dedupe(features).stream().limit(4).forEach(m -> sb.append("  * ").append(m).append("\n"));
+            dedupe(features).stream().limit(5).forEach(m -> sb.append("  • ").append(m).append("\n"));
         }
         if (!fixes.isEmpty()) {
-            sb.append("- 버그/안정화\n");
-            dedupe(fixes).stream().limit(4).forEach(m -> sb.append("  * ").append(m).append("\n"));
+            sb.append("- 버그 수정\n");
+            dedupe(fixes).stream().limit(5).forEach(m -> sb.append("  • ").append(m).append("\n"));
         }
         if (!refactors.isEmpty()) {
-            sb.append("- 구조/리팩터링\n");
-            dedupe(refactors).stream().limit(4).forEach(m -> sb.append("  * ").append(m).append("\n"));
+            sb.append("- 리팩토링/정리\n");
+            dedupe(refactors).stream().limit(5).forEach(m -> sb.append("  • ").append(m).append("\n"));
         }
 
-        sb.append("\n3) 동료 확인 포인트\n");
-        sb.append("- 아래 커밋 메시지 기준으로 영향 기능을 같이 점검해주세요.\n");
-        commits.stream().limit(10).forEach(c -> sb.append("  * [").append(c.getSha()).append("] ")
+        sb.append("\n3) 커밋 디테일\n");
+        commits.stream().limit(12).forEach(c -> sb.append("- [").append(c.getSha()).append("] ")
                 .append(c.getMessage()).append(" (+").append(c.getAdditions())
-                .append("/-").append(c.getDeletions()).append(")\n"));
+                .append(" / -").append(c.getDeletions()).append(")\n"));
 
         if (!comments.isEmpty()) {
             sb.append("\n4) 참고 메모\n");
@@ -341,16 +432,16 @@ public class WorklogService {
             reasons.add("신규 기능 또는 사용자 흐름 개선을 반영하기 위해 변경했습니다.");
         }
         if (!fixes.isEmpty()) {
-            reasons.add("기존 오류를 줄이고 서비스 안정성을 높이기 위해 수정했습니다.");
+            reasons.add("장애 가능성을 낮추고 안정성을 높이기 위해 수정했습니다.");
         }
         if (!refactors.isEmpty()) {
-            reasons.add("코드 유지보수성과 이후 확장성을 높이기 위해 구조를 정리했습니다.");
+            reasons.add("유지보수성과 확장성을 높이기 위해 구조를 정리했습니다.");
         }
         if (reasons.isEmpty()) {
-            reasons.add("운영 점검 및 코드 정리를 위해 변경했습니다.");
+            reasons.add("운영 점검 및 코드 품질 정리를 위해 변경했습니다.");
         }
         if (comments.stream().anyMatch(c -> c.contains("72시간"))) {
-            reasons.add("당일 커밋이 적어 최근 작업까지 포함해 맥락을 보강했습니다.");
+            reasons.add("당일 외 최근 반영분까지 포함해 누락 없이 확인했습니다.");
         }
         return reasons;
     }
@@ -361,7 +452,7 @@ public class WorklogService {
             features.add(message);
             return;
         }
-        if (containsAny(m, "refactor", "cleanup", "clean-up", "restructure", "rename")) {
+        if (containsAny(m, "refactor", "cleanup", "clean-up", "restructure", "rename", "tune")) {
             refactors.add(message);
             return;
         }

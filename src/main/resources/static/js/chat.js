@@ -211,9 +211,12 @@
         }
 
         if (msg.messageType === 'SYSTEM') {
+            var safeContent = escapeHtml(msg.content || '').replace(/\n/g, '<br>');
+            var isWorklog = (msg.content || '').indexOf('[오늘 작업 브리핑]') !== -1
+                || (msg.content || '').indexOf('[오늘 작업 공유]') !== -1;
             $messageArea.append(
-                '<div class="message-system text-center text-muted my-2">' +
-                '<small>' + escapeHtml(msg.content) + '</small>' +
+                '<div class="message-system ' + (isWorklog ? 'message-system-worklog' : '') + '">' +
+                '<div class="message-system-body">' + safeContent + '</div>' +
                 '</div>'
             );
             return;

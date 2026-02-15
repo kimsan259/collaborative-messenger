@@ -42,6 +42,7 @@ public class WorklogController {
             return "redirect:/auth/login";
         }
         model.addAttribute("displayName", session.getAttribute("displayName"));
+        model.addAttribute("fixedAuthor", worklogService.getDefaultAuthor());
         return "worklog";
     }
 

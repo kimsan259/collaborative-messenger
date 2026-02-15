@@ -541,15 +541,35 @@ body {
 
 .message-system {
     align-self: center;
-    max-width: 80%;
+    max-width: 92%;
+    width: 92%;
+    margin: 10px 0;
 }
 
-.message-system small {
+.message-system-body {
     background: rgba(255,255,255,0.06);
-    padding: 4px 14px;
-    border-radius: 12px;
-    font-size: 11px;
-    color: var(--text-muted);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    white-space: normal;
+}
+
+.message-system-worklog .message-system-body {
+    background:
+        radial-gradient(circle at 95% 10%, rgba(99,102,241,0.2), transparent 42%),
+        linear-gradient(120deg, rgba(22,26,52,0.94), rgba(10,13,32,0.96));
+    border: 1px solid rgba(139,92,246,0.45);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    padding: 18px 20px;
+    font-size: 17px;
+    font-weight: 600;
+    color: #eef2ff;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    letter-spacing: 0.2px;
 }
 
 /* Date Separator */
