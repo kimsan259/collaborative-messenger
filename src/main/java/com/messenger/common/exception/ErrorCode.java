@@ -44,6 +44,11 @@ public enum ErrorCode {
     USER_NOT_FOUND(404, "존재하지 않는 사용자입니다."),
     USERNAME_ALREADY_EXISTS(409, "이미 사용 중인 아이디입니다."),
     EMAIL_ALREADY_EXISTS(409, "이미 사용 중인 이메일입니다."),
+    EMAIL_NOT_VERIFIED(400, "이메일 인증이 완료되지 않았습니다."),
+    EMAIL_VERIFICATION_NOT_REQUESTED(400, "이메일 인증 코드 요청이 필요합니다."),
+    EMAIL_VERIFICATION_INVALID(400, "이메일 인증 코드가 올바르지 않습니다."),
+    EMAIL_VERIFICATION_EXPIRED(400, "이메일 인증 코드가 만료되었습니다."),
+    EMAIL_VERIFICATION_SEND_FAILED(500, "인증 메일 전송에 실패했습니다."),
 
     // ===== 팀 에러 =====
     TEAM_NOT_FOUND(404, "존재하지 않는 팀입니다."),
@@ -62,6 +67,7 @@ public enum ErrorCode {
     REPORT_NOT_FOUND(404, "존재하지 않는 업무일지입니다."),
     REPORT_ALREADY_EXISTS(409, "해당 날짜의 업무일지가 이미 존재합니다."),
     REPORT_GENERATION_FAILED(500, "업무일지 생성에 실패했습니다."),
+    REPORTS_DISABLED(410, "Reports 기능은 현재 비활성화되어 있습니다."),
 
     // ===== 친구 에러 =====
     ALREADY_FRIENDS(409, "이미 친구 관계입니다."),

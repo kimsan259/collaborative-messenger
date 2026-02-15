@@ -46,7 +46,8 @@ public class UserRegistrationRequest {
     @Size(max = 100, message = "이름은 100자 이하로 입력해주세요.")
     private String displayName;
 
-    /** 이메일 (선택, 형식 검증) */
+    /** 이메일 (필수, 형식 검증) */
+    @NotBlank(message = "이메일을 입력해주세요.")
     @Email(message = "올바른 이메일 형식이 아닙니다.")
     private String email;
 }

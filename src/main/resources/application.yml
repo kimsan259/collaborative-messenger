@@ -37,6 +37,18 @@
     prefix: classpath:/templates/
     suffix: .html
 
+  mail:
+    host: ${SPRING_MAIL_HOST:}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:true}
+
   session:
     store-type: ${SPRING_SESSION_STORE_TYPE:none}
     timeout: 30m
@@ -89,3 +101,8 @@ app:
     repo: ${WORKLOG_REPO:collaborative-messenger}
     default-author: ${WORKLOG_DEFAULT_AUTHOR:kimsan4515}
     github-token: ${WORKLOG_GITHUB_TOKEN:}
+  email-verification:
+    code-ttl-minutes: ${EMAIL_VERIFICATION_TTL_MINUTES:10}
+    verified-ttl-minutes: ${EMAIL_VERIFIED_TTL_MINUTES:30}
+    from: ${EMAIL_VERIFICATION_FROM:no-reply@narsil.local}
+    debug-expose-code: ${EMAIL_VERIFICATION_DEBUG_EXPOSE_CODE:true}

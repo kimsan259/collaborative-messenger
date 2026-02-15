@@ -5,404 +5,276 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Narsil - Create Account</title>
     <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Pretendard:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #08080e;
+            font-family: 'Pretendard', sans-serif;
+            background: #05070f;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
             overflow-y: auto;
-            position: relative;
         }
-
-        /* === 페이지 외곽 보더 글로우 === */
-        body::before {
-            content: '';
+        .space-bg {
             position: fixed;
             inset: 0;
-            border: 2px solid transparent;
-            border-image: linear-gradient(135deg, #6c3ce0, #4f46e5, #7c3aed, #6c3ce0) 1;
-            pointer-events: none;
-            z-index: 100;
-        }
-
-        /* === 배경 글로우 오브들 === */
-        .bg-orbs {
-            position: fixed;
-            inset: 0;
+            background:
+                radial-gradient(circle at 10% 15%, rgba(56,189,248,0.25), transparent 40%),
+                radial-gradient(circle at 85% 10%, rgba(192,132,252,0.22), transparent 36%),
+                radial-gradient(circle at 85% 90%, rgba(244,63,94,0.2), transparent 35%),
+                linear-gradient(180deg, #05070f, #060814 40%, #05070f);
             z-index: 0;
-            overflow: hidden;
         }
-
-        .orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.6;
-            animation: float 8s ease-in-out infinite;
-        }
-
-        .orb-1 {
-            width: 350px;
-            height: 350px;
-            background: radial-gradient(circle, #06b6d4 0%, #0891b2 30%, transparent 70%);
-            left: -5%;
-            top: 15%;
-            animation-delay: 0s;
-        }
-
-        .orb-2 {
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, #8b5cf6 0%, #7c3aed 30%, transparent 70%);
-            right: 5%;
-            top: 10%;
-            animation-delay: -2s;
-            opacity: 0.5;
-        }
-
-        .orb-3 {
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, #ec4899 0%, #db2777 30%, transparent 70%);
-            right: -8%;
-            bottom: 10%;
-            animation-delay: -4s;
-        }
-
-        .orb-4 {
-            width: 250px;
-            height: 250px;
-            background: radial-gradient(circle, #22c55e 0%, transparent 70%);
-            left: 15%;
-            bottom: 5%;
-            animation-delay: -6s;
-            opacity: 0.35;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0) scale(1); }
-            33% { transform: translateY(-20px) scale(1.05); }
-            66% { transform: translateY(15px) scale(0.95); }
-        }
-
-        /* === 글래스 카드 === */
-        .glass-card {
+        .register-card {
             position: relative;
-            z-index: 10;
+            z-index: 1;
             width: 100%;
-            max-width: 440px;
-            padding: 44px 40px;
-            margin: 40px 16px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            backdrop-filter: blur(40px);
-            -webkit-backdrop-filter: blur(40px);
-            box-shadow:
-                0 0 40px rgba(0, 0, 0, 0.3),
-                inset 0 0 40px rgba(255, 255, 255, 0.02);
+            max-width: 560px;
+            margin: 30px 16px;
+            padding: 34px;
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(9, 12, 29, 0.82);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 24px 80px rgba(2,6,23,0.7), inset 0 1px 0 rgba(255,255,255,0.08);
         }
-
-        /* === 로고 아이콘 === */
-        .logo-icon {
-            width: 56px;
-            height: 56px;
-            margin: 0 auto 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .logo-icon svg {
-            width: 28px;
-            height: 28px;
-            color: white;
-        }
-
-        /* === 타이틀 === */
-        .card-title {
-            text-align: center;
-            color: #ffffff;
-            font-size: 26px;
-            font-weight: 700;
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 34px;
+            font-weight: 800;
+            letter-spacing: .8px;
+            background: linear-gradient(90deg, #ecfeff, #93c5fd 45%, #f9a8d4 90%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             margin-bottom: 8px;
-            letter-spacing: -0.5px;
         }
+        .sub { color: rgba(255,255,255,0.72); margin-bottom: 24px; }
 
-        .card-subtitle {
-            text-align: center;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 14px;
-            margin-bottom: 32px;
-            font-weight: 400;
-        }
+        .msg { display: none; padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; font-size: 14px; }
+        .msg.show { display: block; }
+        .msg.error { background: rgba(220,38,38,0.2); border: 1px solid rgba(248,113,113,0.45); color: #fecaca; }
+        .msg.success { background: rgba(22,163,74,0.2); border: 1px solid rgba(74,222,128,0.45); color: #dcfce7; }
 
-        /* === 메시지 === */
-        .error-msg, .success-msg {
-            padding: 12px 16px;
-            border-radius: 10px;
-            font-size: 13px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .error-msg {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #fca5a5;
-        }
-
-        .success-msg {
-            background: rgba(34, 197, 94, 0.15);
-            border: 1px solid rgba(34, 197, 94, 0.3);
-            color: #86efac;
-        }
-
-        .error-msg.show, .success-msg.show {
-            display: block;
-        }
-
-        .error-msg.show {
-            animation: shake 0.4s ease;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-6px); }
-            75% { transform: translateX(6px); }
-        }
-
-        /* === 폼 라벨 === */
-        .form-label {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            letter-spacing: 0.3px;
-        }
-
-        .form-label .optional {
-            color: rgba(255, 255, 255, 0.3);
-            font-weight: 400;
-            font-size: 11px;
-            margin-left: 4px;
-        }
-
-        /* === 입력 필드 === */
-        .narsil-input {
+        .field { margin-bottom: 14px; }
+        .label { display: block; color: rgba(255,255,255,0.84); margin-bottom: 7px; font-weight: 600; }
+        .input {
             width: 100%;
-            padding: 14px 16px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 13px 14px;
             border-radius: 12px;
-            color: #ffffff;
-            font-size: 14px;
-            font-family: 'Inter', sans-serif;
-            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.06);
+            color: #fff;
             outline: none;
         }
+        .input:focus { border-color: rgba(99,102,241,0.85); box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
 
-        .narsil-input::placeholder {
-            color: rgba(255, 255, 255, 0.25);
-        }
-
-        .narsil-input:focus {
-            border-color: rgba(139, 92, 246, 0.6);
-            background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
-        }
-
-        /* === 버튼 === */
-        .btn-narsil {
-            width: 100%;
-            padding: 14px;
-            background: #ffffff;
-            color: #0a0a0e;
-            border: none;
+        .row2 { display: grid; grid-template-columns: 1fr 160px; gap: 10px; }
+        .btn {
+            border: 1px solid rgba(255,255,255,0.2);
             border-radius: 12px;
-            font-size: 15px;
-            font-weight: 600;
-            font-family: 'Inter', sans-serif;
+            padding: 12px 14px;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s ease;
+            color: #fff;
+            background: rgba(255,255,255,0.08);
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-main {
+            width: 100%;
             margin-top: 8px;
-            letter-spacing: -0.2px;
+            border-color: rgba(99,102,241,0.75);
+            background: linear-gradient(135deg, #7c3aed, #2563eb);
         }
+        .btn-verify { border-color: rgba(34,197,94,0.7); background: linear-gradient(135deg, rgba(22,163,74,0.4), rgba(21,128,61,0.4)); }
 
-        .btn-narsil:hover {
-            background: #f0f0f0;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15);
-        }
-
-        .btn-narsil:active {
-            transform: translateY(0);
-        }
-
-        /* === 로그인 링크 === */
-        .login-link {
-            text-align: center;
-            margin-top: 28px;
-            padding-top: 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-        }
-
-        .login-link span {
-            color: rgba(255, 255, 255, 0.4);
+        .verify-state {
+            margin-top: 8px;
             font-size: 13px;
+            color: #fde68a;
         }
+        .verify-state.ok { color: #86efac; }
 
-        .login-link a {
-            color: #a78bfa;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 13px;
-            transition: color 0.2s;
-        }
+        .footer { margin-top: 20px; color: rgba(255,255,255,0.6); }
+        .footer a { color: #a5b4fc; text-decoration: none; }
 
-        .login-link a:hover {
-            color: #c4b5fd;
-        }
-
-        /* === 하단 브랜딩 === */
-        .brand-footer {
-            position: fixed;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            color: rgba(255, 255, 255, 0.15);
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-
-        .input-group-narsil {
-            margin-bottom: 18px;
-        }
-
-        @media (max-width: 480px) {
-            .glass-card {
-                padding: 32px 24px;
-            }
+        @media (max-width: 640px) {
+            .title { font-size: 26px; }
+            .register-card { padding: 22px; }
+            .row2 { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <!-- 배경 글로우 오브 -->
-    <div class="bg-orbs">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-        <div class="orb orb-4"></div>
-    </div>
+<div class="space-bg"></div>
 
-    <!-- 회원가입 카드 -->
-    <div class="glass-card">
-        <!-- 로고 -->
-        <div class="logo-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
-            </svg>
+<div class="register-card">
+    <h1 class="title">JOIN NARSIL CORE</h1>
+    <p class="sub">이메일 인증 완료 후 회원가입이 가능합니다.</p>
+
+    <div id="errorMessage" class="msg error"></div>
+    <div id="successMessage" class="msg success"></div>
+
+    <form id="registerForm">
+        <div class="field">
+            <label class="label">Username</label>
+            <input type="text" class="input" id="username" required minlength="3" placeholder="unique username">
         </div>
 
-        <h1 class="card-title">Join Narsil</h1>
-        <p class="card-subtitle">Create your account and start collaborating</p>
-
-        <!-- 메시지 -->
-        <div class="error-msg" id="errorMessage"></div>
-        <div class="success-msg" id="successMessage"></div>
-
-        <!-- 회원가입 폼 -->
-        <form id="registerForm">
-            <div class="input-group-narsil">
-                <label class="form-label">Username</label>
-                <input type="text" class="narsil-input" id="username"
-                       placeholder="Choose a unique username" required minlength="3">
-            </div>
-
-            <div class="input-group-narsil">
-                <label class="form-label">Password</label>
-                <input type="password" class="narsil-input" id="password"
-                       placeholder="At least 4 characters" required minlength="4">
-            </div>
-
-            <div class="input-group-narsil">
-                <label class="form-label">Display Name</label>
-                <input type="text" class="narsil-input" id="displayName"
-                       placeholder="Name shown in chats" required>
-            </div>
-
-            <div class="input-group-narsil">
-                <label class="form-label">Email <span class="optional">(optional)</span></label>
-                <input type="email" class="narsil-input" id="email"
-                       placeholder="you@company.com">
-            </div>
-
-            <button type="submit" class="btn-narsil">Create Account</button>
-        </form>
-
-        <div class="login-link">
-            <span>Already have an account? </span>
-            <a th:href="@{/auth/login}">Sign In</a>
+        <div class="field">
+            <label class="label">Password</label>
+            <input type="password" class="input" id="password" required minlength="4" placeholder="at least 4 characters">
         </div>
+
+        <div class="field">
+            <label class="label">Display Name</label>
+            <input type="text" class="input" id="displayName" required placeholder="name shown in chats">
+        </div>
+
+        <div class="field">
+            <label class="label">Email (필수 인증)</label>
+            <div class="row2">
+                <input type="email" class="input" id="email" required placeholder="you@company.com">
+                <button type="button" id="sendCodeBtn" class="btn">코드 발송</button>
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="label">Verification Code</label>
+            <div class="row2">
+                <input type="text" class="input" id="emailCode" maxlength="6" placeholder="6자리 코드">
+                <button type="button" id="verifyCodeBtn" class="btn btn-verify">코드 확인</button>
+            </div>
+            <div id="verifyState" class="verify-state">이메일 인증 필요</div>
+        </div>
+
+        <button type="submit" class="btn btn-main" id="registerBtn">Create Account</button>
+    </form>
+
+    <div class="footer">
+        이미 계정이 있나요? <a th:href="@{/auth/login}">Sign In</a>
     </div>
+</div>
 
-    <!-- 하단 브랜딩 -->
-    <div class="brand-footer">Narsil Messenger</div>
+<script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
+<script>
+    var emailVerified = false;
 
-    <script th:src="@{/webjars/jquery/3.7.1/jquery.min.js}"></script>
-    <script>
-        $('#registerForm').on('submit', function(e) {
-            e.preventDefault();
+    function showError(message) {
+        $('#successMessage').removeClass('show');
+        $('#errorMessage').text(message).addClass('show');
+    }
 
-            var btn = $('.btn-narsil');
-            btn.prop('disabled', true).text('Creating account...');
+    function showSuccess(message) {
+        $('#errorMessage').removeClass('show');
+        $('#successMessage').text(message).addClass('show');
+    }
 
-            $.ajax({
-                url: '/api/auth/register',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    username: $('#username').val(),
-                    password: $('#password').val(),
-                    displayName: $('#displayName').val(),
-                    email: $('#email').val()
-                }),
-                success: function(response) {
-                    $('#errorMessage').removeClass('show');
-                    $('#successMessage').text('Account created successfully! Redirecting...').addClass('show');
-                    btn.text('Welcome!');
-                    setTimeout(function() {
-                        window.location.href = '/auth/login';
-                    }, 1500);
-                },
-                error: function(xhr) {
-                    var message = 'Registration failed. Please try again.';
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        message = xhr.responseJSON.message;
-                    }
-                    $('#successMessage').removeClass('show');
-                    $('#errorMessage').text(message).addClass('show');
-                    btn.prop('disabled', false).text('Create Account');
-                }
-            });
+    $('#sendCodeBtn').on('click', function() {
+        var email = $('#email').val().trim();
+        if (!email) {
+            showError('이메일을 입력하세요.');
+            return;
+        }
+
+        var btn = $(this);
+        btn.prop('disabled', true).text('발송 중...');
+
+        $.ajax({
+            url: '/api/auth/email/send',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ email: email }),
+            success: function(res) {
+                emailVerified = false;
+                $('#verifyState').removeClass('ok').text('인증 코드를 입력하고 코드 확인을 눌러주세요.');
+                var debugCode = res.data && res.data.debugCode ? (' [개발코드: ' + res.data.debugCode + ']') : '';
+                showSuccess('인증 코드를 전송했습니다.' + debugCode);
+            },
+            error: function(xhr) {
+                showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '코드 발송 실패');
+            },
+            complete: function() {
+                btn.prop('disabled', false).text('코드 발송');
+            }
         });
+    });
 
-        $('input').on('input', function() {
-            $('#errorMessage').removeClass('show');
+    $('#verifyCodeBtn').on('click', function() {
+        var email = $('#email').val().trim();
+        var code = $('#emailCode').val().trim();
+
+        if (!email || !code) {
+            showError('이메일과 인증 코드를 모두 입력하세요.');
+            return;
+        }
+
+        var btn = $(this);
+        btn.prop('disabled', true).text('확인 중...');
+
+        $.ajax({
+            url: '/api/auth/email/verify',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ email: email, code: code }),
+            success: function() {
+                emailVerified = true;
+                $('#verifyState').addClass('ok').text('이메일 인증 완료');
+                showSuccess('이메일 인증이 완료되었습니다.');
+            },
+            error: function(xhr) {
+                emailVerified = false;
+                $('#verifyState').removeClass('ok').text('이메일 인증 필요');
+                showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : '코드 확인 실패');
+            },
+            complete: function() {
+                btn.prop('disabled', false).text('코드 확인');
+            }
         });
-    </script>
+    });
+
+    $('#email').on('input', function() {
+        emailVerified = false;
+        $('#verifyState').removeClass('ok').text('이메일 인증 필요');
+    });
+
+    $('#registerForm').on('submit', function(e) {
+        e.preventDefault();
+
+        if (!emailVerified) {
+            showError('회원가입 전에 이메일 인증을 완료하세요.');
+            return;
+        }
+
+        var btn = $('#registerBtn');
+        btn.prop('disabled', true).text('Creating account...');
+
+        $.ajax({
+            url: '/api/auth/register',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                username: $('#username').val().trim(),
+                password: $('#password').val(),
+                displayName: $('#displayName').val().trim(),
+                email: $('#email').val().trim()
+            }),
+            success: function() {
+                showSuccess('Account created successfully! Redirecting...');
+                setTimeout(function() {
+                    window.location.href = '/auth/login';
+                }, 1300);
+            },
+            error: function(xhr) {
+                showError(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Registration failed.');
+                btn.prop('disabled', false).text('Create Account');
+            }
+        });
+    });
+</script>
 </body>
 </html>

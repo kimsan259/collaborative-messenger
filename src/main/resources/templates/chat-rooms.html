@@ -8,27 +8,26 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body class="page-border">
-    <!-- 배경 오브 -->
+    <!-- 獄쏄퀗瑗???삵닏 -->
     <div class="bg-orbs">
         <div class="orb orb-1"></div>
         <div class="orb orb-2"></div>
         <div class="orb orb-3"></div>
     </div>
 
-    <!-- 네비게이션 -->
+    <!-- ??삵돩野껊슣???-->
     <nav class="narsil-nav d-flex justify-content-between align-items-center">
         <a href="/chat/rooms" class="nav-brand"><span>Narsil</span></a>
         <div class="d-flex align-items-center gap-8">
             <a th:href="@{/profile}" class="nav-user" style="text-decoration:none;" th:text="${displayName}">User</a>
             <a th:href="@{/friends}" class="nav-btn">Friends</a>
-            <a th:href="@{/reports}" class="nav-btn">Reports</a>
             <a th:href="@{/worklog}" class="nav-btn">Worklog</a>
             <a th:href="@{/auth/logout}" class="nav-btn">Logout</a>
         </div>
     </nav>
 
     <div style="position:relative; z-index:1; max-width:700px; margin:0 auto; padding:32px 20px;">
-        <!-- 헤더 -->
+        <!-- ??삳쐭 -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h2 class="section-title">Chat Rooms</h2>
@@ -39,7 +38,7 @@
             </button>
         </div>
 
-        <!-- 채팅방 목록 -->
+        <!-- 筌?쑵?욤쳸?筌뤴뫖以?-->
         <div class="glass-card" style="overflow:hidden;">
             <a th:each="room : ${rooms}"
                th:href="@{/chat/room/{id}(id=${room.id})}"
@@ -69,7 +68,7 @@
                 </div>
             </a>
 
-            <!-- 비어있을 때 -->
+            <!-- ??쑴堉??됱뱽 ??-->
             <div th:if="${#lists.isEmpty(rooms)}" class="empty-state">
                 <p>No chat rooms yet.</p>
                 <p>Create a new room to start chatting!</p>
@@ -77,7 +76,7 @@
         </div>
     </div>
 
-    <!-- 채팅방 생성 모달 -->
+    <!-- 筌?쑵?욤쳸???밴쉐 筌뤴뫀??-->
     <div class="modal fade narsil-modal" id="createRoomModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
