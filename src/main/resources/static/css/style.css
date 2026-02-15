@@ -321,6 +321,81 @@ body::after {
 
 .section-sub { font-size: 13px; color: var(--text-3); }
 
+/* ===== Tabs (Friends etc.) ===== */
+.narsil-tabs {
+    display: inline-flex;
+    gap: 6px;
+    padding: 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    box-shadow: 0 18px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.narsil-tab {
+    appearance: none;
+    border: 1px solid transparent;
+    background: transparent;
+    color: rgba(255,255,255,0.72);
+    padding: 10px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 108px;
+}
+
+.narsil-tab:hover {
+    color: rgba(234,255,255,0.92);
+    background: rgba(255,255,255,0.05);
+    transform: translateY(-1px);
+    border-color: rgba(46,233,255,0.18);
+}
+
+.narsil-tab.active {
+    color: #061018;
+    background: linear-gradient(135deg, rgba(46,233,255,0.95), rgba(90,170,255,0.85) 45%, rgba(255,79,216,0.80));
+    border-color: rgba(255,255,255,0.18);
+    box-shadow: 0 14px 34px rgba(46,233,255,0.10), 0 12px 30px rgba(255,79,216,0.08);
+    transform: translateY(-1px);
+}
+
+.narsil-tab:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(46,233,255,0.16);
+}
+
+.narsil-tab .tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(255,95,109,0.95);
+    color: #061018;
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: 0;
+    box-shadow: 0 10px 24px rgba(255,95,109,0.14);
+}
+
+@media (max-width: 560px) {
+    .narsil-tabs { width: 100%; justify-content: space-between; }
+    .narsil-tab { min-width: 0; flex: 1; padding: 10px 10px; }
+}
+
 /* ===== List Items ===== */
 .narsil-list-item {
     display: flex;
