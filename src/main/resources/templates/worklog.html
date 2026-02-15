@@ -210,7 +210,7 @@
 <div class="worklog-shell">
     <div class="worklog-hero">
         <h2 class="worklog-title">DAILY WORKLOG COMMAND CENTER</h2>
-        <p class="worklog-sub">GitHub 커밋을 자동 분석해 동료에게 즉시 공유합니다.</p>
+        <p class="worklog-sub">GitHub 커밋 기반 자동 분석 후 동료에게 즉시 공유합니다.</p>
         <div class="worklog-grid">
             <input id="authorInput" class="narsil-input" th:value="${fixedAuthor}" readonly>
             <select id="friendSelect" class="form-select narsil-input"></select>
@@ -311,8 +311,8 @@
             $('#processStatusText').text(text || '완료되었습니다.');
             showToast('success', text || '작업이 완료되었습니다.');
         } else {
-            stepFail(4, text || '작업에 실패했습니다.');
-            showToast('error', text || '작업에 실패했습니다.');
+            stepFail(4, text || '작업이 실패했습니다.');
+            showToast('error', text || '작업이 실패했습니다.');
         }
     }
 
@@ -388,7 +388,7 @@
         var friendId = $('#friendSelect').val();
         var author = $('#authorInput').val().trim();
         if (!friendId) {
-            showToast('error', '전송할 친구를 선택해주세요.');
+            showToast('error', '전송할 친구를 선택해 주세요.');
             return;
         }
 
