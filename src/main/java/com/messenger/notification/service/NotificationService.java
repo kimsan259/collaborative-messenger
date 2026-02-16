@@ -4,11 +4,14 @@ import com.messenger.notification.dto.NotificationResponse;
 import com.messenger.notification.entity.Notification;
 import com.messenger.notification.entity.NotificationType;
 import com.messenger.notification.repository.NotificationRepository;
+import com.messenger.common.exception.BusinessException;
+import com.messenger.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -57,6 +60,7 @@ public class NotificationService {
      * @param referenceId 관련 객체 ID (채팅방 ID, 리포트 ID 등)
      */
     @Async("notificationExecutor")
+    @Transactional
     public void createAndSend(Long recipientId, NotificationType type, String message, Long referenceId) {
         try {
             // 1단계: DB에 알림 저장
@@ -114,15 +118,23 @@ public class NotificationService {
 
     /**
      * 특정 알림을 읽음 처리.
+     * 본인의 알림만 읽음 처리할 수 있습니다.
      *
      * @param notificationId 알림 ID
+     * @param userId 요청한 사용자 ID (소유권 검증용)
      */
-    public void markAsRead(Long notificationId) {
-        notificationRepository.findById(notificationId).ifPresent(notification -> {
-            notification.markAsRead();
-            notificationRepository.save(notification);
-            log.debug("[알림 읽음] 알림ID={}", notificationId);
-        });
+    @Transactional
+    public void markAsRead(Long notificationId, Long userId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND));
+
+        if (!notification.getRecipientId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        notification.markAsRead();
+        notificationRepository.save(notification);
+        log.debug("[알림 읽음] 알림ID={}, 사용자ID={}", notificationId, userId);
     }
 
     /**
@@ -130,6 +142,7 @@ public class NotificationService {
      *
      * @param userId 사용자 ID
      */
+    @Transactional
     public void markAllAsRead(Long userId) {
         List<Notification> unread = notificationRepository
                 .findByRecipientIdAndReadFalseOrderByCreatedAtDesc(userId);

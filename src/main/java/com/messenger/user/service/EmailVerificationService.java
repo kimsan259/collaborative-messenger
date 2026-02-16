@@ -29,7 +29,7 @@ public class EmailVerificationService {
     @Value("${app.email-verification.verified-ttl-minutes:30}")
     private long verifiedTtlMinutes;
 
-    @Value("${app.email-verification.debug-expose-code:true}")
+    @Value("${app.email-verification.debug-expose-code:false}")
     private boolean debugExposeCode;
 
     @Transactional

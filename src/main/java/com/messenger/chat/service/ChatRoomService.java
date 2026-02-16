@@ -79,7 +79,7 @@ public class ChatRoomService {
             }
         }
 
-        int memberCount = chatRoomMemberRepository.findByChatRoomId(savedRoom.getId()).size();
+        int memberCount = chatRoomMemberRepository.countByChatRoomId(savedRoom.getId());
         log.info("[채팅방 생성 완료] 채팅방ID={}, 이름={}, 멤버수={}", savedRoom.getId(), savedRoom.getName(), memberCount);
 
         return ChatRoomResponse.from(savedRoom, memberCount);
@@ -89,12 +89,12 @@ public class ChatRoomService {
      * 【특정 사용자의 채팅방 목록 조회 (unreadCount + lastMessage 포함)】
      */
     public List<ChatRoomResponse> findRoomsByUserId(Long userId) {
-        List<ChatRoomMember> memberships = chatRoomMemberRepository.findByUserId(userId);
+        List<ChatRoomMember> memberships = chatRoomMemberRepository.findByUserIdWithChatRoom(userId);
 
         return memberships.stream()
                 .map(membership -> {
                     ChatRoom room = membership.getChatRoom();
-                    int memberCount = chatRoomMemberRepository.findByChatRoomId(room.getId()).size();
+                    int memberCount = chatRoomMemberRepository.countByChatRoomId(room.getId());
 
                     // 안 읽은 메시지 수 계산
                     long unreadCount = getUnreadCount(room.getId(), membership.getLastReadAt());
@@ -151,7 +151,7 @@ public class ChatRoomService {
     public ChatRoomResponse findRoomById(Long roomId) {
         ChatRoom room = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND));
-        int memberCount = chatRoomMemberRepository.findByChatRoomId(roomId).size();
+        int memberCount = chatRoomMemberRepository.countByChatRoomId(roomId);
         return ChatRoomResponse.from(room, memberCount);
     }
 
@@ -196,7 +196,7 @@ public class ChatRoomService {
 
         if (existingRoom.isPresent()) {
             ChatRoom room = existingRoom.get();
-            int memberCount = chatRoomMemberRepository.findByChatRoomId(room.getId()).size();
+            int memberCount = chatRoomMemberRepository.countByChatRoomId(room.getId());
             return ChatRoomResponse.from(room, memberCount);
         }
 

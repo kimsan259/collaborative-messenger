@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -207,12 +208,31 @@ public class FriendshipService {
 
         List<User> users = userRepository.findByUsernameContainingOrDisplayNameContaining(keyword, keyword);
 
-        return users.stream()
+        List<User> filtered = users.stream()
                 .filter(u -> !u.getId().equals(currentUserId))
+                .collect(Collectors.toList());
+
+        if (filtered.isEmpty()) {
+            return List.of();
+        }
+
+        // N+1 방지: 검색된 사용자들과의 친구 관계를 한 번에 조회
+        List<Long> otherIds = filtered.stream().map(User::getId).collect(Collectors.toList());
+        List<Friendship> existingFriendships = friendshipRepository.findAllByUserAndOtherUsers(currentUserId, otherIds);
+
+        // 상대방 ID → Friendship 매핑
+        Map<Long, Friendship> friendshipMap = existingFriendships.stream()
+                .collect(Collectors.toMap(
+                        f -> f.getRequester().getId().equals(currentUserId) ? f.getReceiver().getId() : f.getRequester().getId(),
+                        f -> f,
+                        (a, b) -> a // 중복 시 첫 번째 유지
+                ));
+
+        return filtered.stream()
                 .map(u -> {
-                    var existing = friendshipRepository.findByUsers(currentUserId, u.getId());
-                    if (existing.isPresent()) {
-                        return FriendshipResponse.from(existing.get(), currentUserId);
+                    Friendship existing = friendshipMap.get(u.getId());
+                    if (existing != null) {
+                        return FriendshipResponse.from(existing, currentUserId);
                     }
                     return FriendshipResponse.builder()
                             .friendId(u.getId())

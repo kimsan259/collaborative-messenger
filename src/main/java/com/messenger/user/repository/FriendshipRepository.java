@@ -38,4 +38,10 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
             "(f.requester.id = :userId1 AND f.receiver.id = :userId2) OR " +
             "(f.requester.id = :userId2 AND f.receiver.id = :userId1)")
     boolean existsByUsers(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
+
+    /** 특정 사용자와 여러 상대방 간의 친구 관계를 일괄 조회 (N+1 방지) */
+    @Query("SELECT f FROM Friendship f WHERE " +
+            "(f.requester.id = :userId AND f.receiver.id IN :otherIds) OR " +
+            "(f.receiver.id = :userId AND f.requester.id IN :otherIds)")
+    List<Friendship> findAllByUserAndOtherUsers(@Param("userId") Long userId, @Param("otherIds") List<Long> otherIds);
 }

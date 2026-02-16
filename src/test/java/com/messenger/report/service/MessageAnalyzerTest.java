@@ -47,7 +47,6 @@ class MessageAnalyzerTest {
         return ChatMessage.builder()
                 .chatRoomId(chatRoomId)
                 .senderId(senderId)
-                .senderName("테스트사용자")
                 .content(content)
                 .messageType(MessageType.TEXT)
                 .sentAt(sentAt)

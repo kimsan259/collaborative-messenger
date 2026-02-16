@@ -5,6 +5,8 @@ import com.messenger.chat.dto.ChatRoomMemberResponse;
 import com.messenger.chat.dto.ChatRoomResponse;
 import com.messenger.chat.service.ChatRoomService;
 import com.messenger.common.dto.ApiResponse;
+import com.messenger.common.exception.BusinessException;
+import com.messenger.common.exception.ErrorCode;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -64,7 +66,7 @@ public class ChatRoomController {
     @GetMapping("/api/chat/rooms")
     @ResponseBody
     public ResponseEntity<ApiResponse<List<ChatRoomResponse>>> getRooms(HttpSession session) {
-        Long userId = (Long) session.getAttribute("userId");
+        Long userId = requireUserId(session);
         List<ChatRoomResponse> rooms = chatRoomService.findRoomsByUserId(userId);
         return ResponseEntity.ok(ApiResponse.success("채팅방 목록을 조회했습니다.", rooms));
     }
@@ -75,7 +77,7 @@ public class ChatRoomController {
     public ResponseEntity<ApiResponse<ChatRoomResponse>> createRoom(
             @Valid @RequestBody ChatRoomCreateRequest request,
             HttpSession session) {
-        Long creatorId = (Long) session.getAttribute("userId");
+        Long creatorId = requireUserId(session);
         ChatRoomResponse room = chatRoomService.createRoom(request, creatorId);
         return ResponseEntity.ok(ApiResponse.success("채팅방이 생성되었습니다.", room));
     }
@@ -85,7 +87,7 @@ public class ChatRoomController {
     @ResponseBody
     public ResponseEntity<ApiResponse<Void>> markAsRead(
             @PathVariable Long roomId, HttpSession session) {
-        Long userId = (Long) session.getAttribute("userId");
+        Long userId = requireUserId(session);
         chatRoomService.markAsRead(roomId, userId);
         return ResponseEntity.ok(ApiResponse.success("읽음 처리되었습니다."));
     }
@@ -95,7 +97,7 @@ public class ChatRoomController {
     @ResponseBody
     public ResponseEntity<ApiResponse<ChatRoomResponse>> getOrCreateDm(
             @PathVariable Long targetUserId, HttpSession session) {
-        Long currentUserId = (Long) session.getAttribute("userId");
+        Long currentUserId = requireUserId(session);
         ChatRoomResponse room = chatRoomService.getOrCreateDirectRoom(currentUserId, targetUserId);
         return ResponseEntity.ok(ApiResponse.success("DM 채팅방입니다.", room));
     }
@@ -134,8 +136,16 @@ public class ChatRoomController {
     @ResponseBody
     public ResponseEntity<ApiResponse<Void>> leaveRoom(
             @PathVariable Long roomId, HttpSession session) {
-        Long userId = (Long) session.getAttribute("userId");
+        Long userId = requireUserId(session);
         chatRoomService.leaveRoom(roomId, userId);
         return ResponseEntity.ok(ApiResponse.success("채팅방을 나갔습니다."));
+    }
+
+    private Long requireUserId(HttpSession session) {
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        return userId;
     }
 }

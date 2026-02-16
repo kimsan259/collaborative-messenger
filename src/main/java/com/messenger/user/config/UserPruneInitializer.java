@@ -23,7 +23,7 @@ public class UserPruneInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
 
-    @Value("${app.user-maintenance.prune-on-startup:true}")
+    @Value("${app.user-maintenance.prune-on-startup:false}")
     private boolean pruneOnStartup;
 
     @Override

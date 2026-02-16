@@ -1,6 +1,8 @@
 package com.messenger.user.controller;
 
 import com.messenger.common.dto.ApiResponse;
+import com.messenger.common.exception.BusinessException;
+import com.messenger.common.exception.ErrorCode;
 import com.messenger.user.dto.UserResponse;
 import com.messenger.user.service.UserService;
 import jakarta.servlet.http.HttpSession;
@@ -65,7 +67,7 @@ public class UserController {
     @ResponseBody
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
             @RequestBody Map<String, String> request, HttpSession session) {
-        Long userId = (Long) session.getAttribute("userId");
+        Long userId = requireUserId(session);
         String displayName = request.get("displayName");
         String email = request.get("email");
         UserResponse updated = userService.updateProfile(userId, displayName, email);
@@ -78,7 +80,7 @@ public class UserController {
     @ResponseBody
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @RequestBody Map<String, String> request, HttpSession session) {
-        Long userId = (Long) session.getAttribute("userId");
+        Long userId = requireUserId(session);
         userService.changePassword(userId, request.get("currentPassword"), request.get("newPassword"));
         return ResponseEntity.ok(ApiResponse.success("비밀번호가 변경되었습니다."));
     }
@@ -88,7 +90,7 @@ public class UserController {
     @ResponseBody
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadProfileImage(
             @RequestParam("file") MultipartFile file, HttpSession session) throws IOException {
-        Long userId = (Long) session.getAttribute("userId");
+        Long userId = requireUserId(session);
 
         // 파일 확장자 검증
         String originalFilename = file.getOriginalFilename();
@@ -124,5 +126,13 @@ public class UserController {
 
         return ResponseEntity.ok(ApiResponse.success("프로필 이미지가 업로드되었습니다.",
                 Map.of("profileImage", imageUrl)));
+    }
+
+    private Long requireUserId(HttpSession session) {
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        return userId;
     }
 }

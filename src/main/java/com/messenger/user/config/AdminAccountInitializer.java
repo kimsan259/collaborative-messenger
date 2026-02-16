@@ -44,9 +44,9 @@ public class AdminAccountInitializer implements CommandLineRunner {
         admin.updateRole(UserRole.ADMIN);
         admin.activate();
         admin.markEmailVerified();
-        admin.updatePassword(passwordEncoder.encode("admin"));
+        // 기존 비밀번호를 초기화하지 않음 -- 관리자가 변경한 비밀번호가 유지되어야 합니다.
         userRepository.save(admin);
-        log.info("[admin-init] existing admin account normalized. username=admin");
+        log.info("[admin-init] existing admin account normalized (password unchanged). username=admin");
     }
 }
 

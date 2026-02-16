@@ -14,6 +14,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.messenger.common.exception.BusinessException;
+import com.messenger.common.exception.ErrorCode;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,7 +54,7 @@ public class ChatMessageController {
             @RequestBody ChatMessageRequest request,
             HttpSession session) {
 
-        Long senderId = (Long) session.getAttribute("userId");
+        Long senderId = requireUserId(session);
         String senderName = (String) session.getAttribute("displayName");
 
         publishMessageEvent(roomId, senderId, senderName, request);
@@ -85,7 +88,10 @@ public class ChatMessageController {
         }
 
         String storedName = UUID.randomUUID() + ext;
-        Path target = uploadPath.resolve(storedName);
+        Path target = uploadPath.resolve(storedName).normalize();
+        if (!target.startsWith(uploadPath)) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("잘못된 파일 이름입니다."));
+        }
         file.transferTo(target.toFile());
 
         String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
@@ -100,17 +106,25 @@ public class ChatMessageController {
         request.setAttachmentContentType(contentType);
         request.setAttachmentSize(file.getSize());
 
-        Long senderId = (Long) session.getAttribute("userId");
+        Long senderId = requireUserId(session);
         String senderName = (String) session.getAttribute("displayName");
         publishMessageEvent(roomId, senderId, senderName, request);
 
         return ResponseEntity.ok(ApiResponse.success("파일이 전송되었습니다."));
     }
 
+    private Long requireUserId(HttpSession session) {
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        return userId;
+    }
+
     private void publishMessageEvent(Long roomId, Long senderId, String senderName, ChatMessageRequest request) {
         ChatMessageEvent event = ChatMessageEvent.builder()
                 .chatRoomId(roomId)
-                .senderId(senderId != null ? senderId : 0L)
+                .senderId(senderId)
                 .senderName(senderName != null ? senderName : "익명")
                 .content(request.getContent())
                 .messageType(request.getMessageType() != null ? request.getMessageType() : "TEXT")

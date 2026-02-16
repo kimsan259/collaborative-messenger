@@ -2,6 +2,8 @@ package com.messenger.chat.repository;
 
 import com.messenger.chat.entity.ChatRoomMember;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -26,4 +28,12 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
 
     /** 특정 사용자의 특정 채팅방 멤버십 조회 (읽음 처리용) */
     Optional<ChatRoomMember> findByChatRoomIdAndUserId(Long chatRoomId, Long userId);
+
+    /** 특정 채팅방의 멤버 수를 COUNT 쿼리로 조회 (전체 로딩 방지) */
+    @Query("SELECT COUNT(m) FROM ChatRoomMember m WHERE m.chatRoom.id = :chatRoomId")
+    int countByChatRoomId(@Param("chatRoomId") Long chatRoomId);
+
+    /** 특정 사용자가 참여한 채팅방 멤버십을 ChatRoom과 함께 JOIN FETCH 조회 */
+    @Query("SELECT m FROM ChatRoomMember m JOIN FETCH m.chatRoom WHERE m.user.id = :userId")
+    List<ChatRoomMember> findByUserIdWithChatRoom(@Param("userId") Long userId);
 }

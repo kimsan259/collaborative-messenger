@@ -1,6 +1,8 @@
 package com.messenger.notification.controller;
 
 import com.messenger.common.dto.ApiResponse;
+import com.messenger.common.exception.BusinessException;
+import com.messenger.common.exception.ErrorCode;
 import com.messenger.notification.dto.NotificationResponse;
 import com.messenger.notification.service.NotificationService;
 import jakarta.servlet.http.HttpSession;
@@ -41,7 +43,7 @@ public class NotificationController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<NotificationResponse>>> getNotifications(HttpSession session) {
-        Long userId = (Long) session.getAttribute("userId");
+        Long userId = requireUserId(session);
         List<NotificationResponse> notifications = notificationService.getNotifications(userId);
         return ResponseEntity.ok(ApiResponse.success("알림 목록을 조회했습니다.", notifications));
     }
@@ -52,17 +54,19 @@ public class NotificationController {
      */
     @GetMapping("/unread-count")
     public ResponseEntity<ApiResponse<Long>> getUnreadCount(HttpSession session) {
-        Long userId = (Long) session.getAttribute("userId");
+        Long userId = requireUserId(session);
         long count = notificationService.getUnreadCount(userId);
         return ResponseEntity.ok(ApiResponse.success("읽지 않은 알림 수를 조회했습니다.", count));
     }
 
     /**
      * 특정 알림을 읽음 처리합니다.
+     * 본인의 알림만 읽음 처리할 수 있습니다.
      */
     @PostMapping("/{id}/read")
-    public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable Long id) {
-        notificationService.markAsRead(id);
+    public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable Long id, HttpSession session) {
+        Long userId = requireUserId(session);
+        notificationService.markAsRead(id, userId);
         return ResponseEntity.ok(ApiResponse.success("알림을 읽음 처리했습니다."));
     }
 
@@ -71,8 +75,16 @@ public class NotificationController {
      */
     @PostMapping("/read-all")
     public ResponseEntity<ApiResponse<Void>> markAllAsRead(HttpSession session) {
-        Long userId = (Long) session.getAttribute("userId");
+        Long userId = requireUserId(session);
         notificationService.markAllAsRead(userId);
         return ResponseEntity.ok(ApiResponse.success("모든 알림을 읽음 처리했습니다."));
+    }
+
+    private Long requireUserId(HttpSession session) {
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        return userId;
     }
 }
