@@ -108,6 +108,12 @@ app:
     repo: ${WORKLOG_REPO:collaborative-messenger}
     default-author: ${WORKLOG_DEFAULT_AUTHOR:kimsan4515}
     github-token: ${WORKLOG_GITHUB_TOKEN:}
+    github-api-base-url: ${WORKLOG_GITHUB_API_BASE_URL:https://api.github.com}
+    max-pages: ${WORKLOG_MAX_PAGES:6}
+    summary-cache-ttl-seconds: ${WORKLOG_SUMMARY_CACHE_TTL_SECONDS:45}
+    branch-cache-ttl-seconds: ${WORKLOG_BRANCH_CACHE_TTL_SECONDS:300}
+    commit-detail-cache-ttl-seconds: ${WORKLOG_COMMIT_DETAIL_CACHE_TTL_SECONDS:120}
+    recent-window-days: ${WORKLOG_RECENT_WINDOW_DAYS:2}
   mail:
     provider: ${APP_MAIL_PROVIDER:none}
     resend-api-key: ${RESEND_API_KEY:}

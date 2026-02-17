@@ -23,6 +23,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -41,7 +43,28 @@ public class WorklogService {
     @Value("${app.worklog.github-token:}")
     private String githubToken;
 
+    @Value("${app.worklog.github-api-base-url:https://api.github.com}")
+    private String githubApiBaseUrl;
+
+    @Value("${app.worklog.max-pages:6}")
+    private int maxPages;
+
+    @Value("${app.worklog.summary-cache-ttl-seconds:45}")
+    private long summaryCacheTtlSeconds;
+
+    @Value("${app.worklog.branch-cache-ttl-seconds:300}")
+    private long branchCacheTtlSeconds;
+
+    @Value("${app.worklog.commit-detail-cache-ttl-seconds:120}")
+    private long commitDetailCacheTtlSeconds;
+
+    @Value("${app.worklog.recent-window-days:2}")
+    private long recentWindowDays;
+
     private final RestTemplate restTemplate = new RestTemplate();
+    private final ConcurrentMap<String, TimedValue<WorklogSummaryResponse>> summaryCache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, TimedValue<Map<String, Object>>> commitDetailCache = new ConcurrentHashMap<>();
+    private volatile TimedValue<List<String>> branchCache;
 
     public String getDefaultAuthor() {
         return defaultAuthor;
@@ -51,26 +74,32 @@ public class WorklogService {
         String requestedAuthor = (authorOrNull == null || authorOrNull.isBlank())
                 ? defaultAuthor
                 : authorOrNull.trim();
+        List<String> authorCandidates = parseAuthorCandidates(requestedAuthor, defaultAuthor);
 
         ZoneId zone = ZoneId.of("Asia/Seoul");
         LocalDate today = LocalDate.now(zone);
         OffsetDateTime since = today.atStartOfDay(zone).toOffsetDateTime();
         OffsetDateTime until = OffsetDateTime.now(zone);
+        String summaryCacheKey = buildSummaryCacheKey(today, authorCandidates);
+        WorklogSummaryResponse cached = getCachedSummary(summaryCacheKey);
+        if (cached != null) {
+            return cached;
+        }
 
         boolean fallbackToAllBranches = false;
         boolean fallbackToRecentWindow = false;
         boolean fallbackToRepoWide = false;
 
-        List<Map<String, Object>> commits = fetchCommitsByAuthor(requestedAuthor, since, until);
+        List<Map<String, Object>> commits = fetchCommitsByAuthors(authorCandidates, since, until);
 
         if (commits.isEmpty()) {
-            commits = fetchCommitsByAuthorAcrossBranches(requestedAuthor, since, until);
+            commits = fetchCommitsByAuthorsAcrossBranches(authorCandidates, since, until);
             fallbackToAllBranches = !commits.isEmpty();
         }
 
         if (commits.isEmpty()) {
             List<Map<String, Object>> repoTodayAcrossBranches = fetchCommitsAcrossBranches(since, until);
-            commits = filterByPossibleAuthor(repoTodayAcrossBranches, requestedAuthor);
+            commits = filterByPossibleAuthor(repoTodayAcrossBranches, authorCandidates);
             fallbackToAllBranches = !commits.isEmpty();
 
             if (commits.isEmpty()) {
@@ -80,13 +109,13 @@ public class WorklogService {
         }
 
         if (commits.isEmpty()) {
-            OffsetDateTime recentSince = since.minusDays(2);
-            commits = fetchCommitsByAuthorAcrossBranches(requestedAuthor, recentSince, until);
+            OffsetDateTime recentSince = since.minusDays(Math.max(1, recentWindowDays));
+            commits = fetchCommitsByAuthorsAcrossBranches(authorCandidates, recentSince, until);
             fallbackToRecentWindow = !commits.isEmpty();
 
             if (commits.isEmpty()) {
                 List<Map<String, Object>> repoRecentAcrossBranches = fetchCommitsAcrossBranches(recentSince, until);
-                commits = filterByPossibleAuthor(repoRecentAcrossBranches, requestedAuthor);
+                commits = filterByPossibleAuthor(repoRecentAcrossBranches, authorCandidates);
                 if (!commits.isEmpty()) {
                     fallbackToRecentWindow = true;
                 }
@@ -100,12 +129,104 @@ public class WorklogService {
         }
 
         commits = dedupeCommitMapsBySha(commits);
-        return buildSummary(requestedAuthor, today, commits, fallbackToRepoWide, fallbackToRecentWindow, fallbackToAllBranches);
+        WorklogSummaryResponse summary = buildSummary(
+                String.join(",", authorCandidates),
+                today,
+                commits,
+                fallbackToRepoWide,
+                fallbackToRecentWindow,
+                fallbackToAllBranches
+        );
+        putCachedSummary(summaryCacheKey, summary);
+        return summary;
+    }
+
+    static List<String> parseAuthorCandidates(String rawInput, String fallbackAuthor) {
+        String source = rawInput == null ? "" : rawInput;
+        String fallback = normalizeAuthorToken(fallbackAuthor);
+
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String token : source.split("[,;\\s]+")) {
+            String candidate = normalizeAuthorToken(token);
+            if (!candidate.isBlank()) {
+                normalized.add(candidate);
+            }
+        }
+
+        if (normalized.isEmpty() && !fallback.isBlank()) {
+            normalized.add(fallback);
+        }
+        return new ArrayList<>(normalized);
+    }
+
+    static String extractNextLink(String linkHeader) {
+        if (linkHeader == null || linkHeader.isBlank()) {
+            return null;
+        }
+
+        String[] sections = linkHeader.split(",");
+        for (String section : sections) {
+            String part = section.trim();
+            if (!part.contains("rel=\"next\"")) {
+                continue;
+            }
+            int start = part.indexOf('<');
+            int end = part.indexOf('>');
+            if (start >= 0 && end > start) {
+                return part.substring(start + 1, end).trim();
+            }
+        }
+        return null;
+    }
+
+    private String buildSummaryCacheKey(LocalDate date, List<String> authorCandidates) {
+        return owner + ":" + repo + ":" + date + ":" + String.join("|", authorCandidates);
+    }
+
+    private WorklogSummaryResponse getCachedSummary(String key) {
+        TimedValue<WorklogSummaryResponse> cached = summaryCache.get(key);
+        if (cached == null) {
+            return null;
+        }
+        if (cached.isExpired()) {
+            summaryCache.remove(key);
+            return null;
+        }
+        return cached.value();
+    }
+
+    private void putCachedSummary(String key, WorklogSummaryResponse summary) {
+        summaryCache.put(key, TimedValue.of(summary, summaryCacheTtlSeconds));
+        trimCache(summaryCache, 256);
+    }
+
+    private List<Map<String, Object>> fetchCommitsByAuthors(
+            List<String> authorCandidates,
+            OffsetDateTime since,
+            OffsetDateTime until
+    ) {
+        List<Map<String, Object>> merged = new ArrayList<>();
+        for (String author : authorCandidates) {
+            merged.addAll(fetchCommitsByAuthor(author, since, until));
+        }
+        return dedupeCommitMapsBySha(merged);
+    }
+
+    private List<Map<String, Object>> fetchCommitsByAuthorsAcrossBranches(
+            List<String> authorCandidates,
+            OffsetDateTime since,
+            OffsetDateTime until
+    ) {
+        List<Map<String, Object>> merged = new ArrayList<>();
+        for (String author : authorCandidates) {
+            merged.addAll(fetchCommitsByAuthorAcrossBranches(author, since, until));
+        }
+        return dedupeCommitMapsBySha(merged);
     }
 
     private List<Map<String, Object>> fetchCommitsByAuthor(String author, OffsetDateTime since, OffsetDateTime until) {
         String url = UriComponentsBuilder
-                .fromUriString("https://api.github.com/repos/{owner}/{repo}/commits")
+                .fromUriString(githubApiBaseUrl + "/repos/{owner}/{repo}/commits")
                 .queryParam("author", author)
                 .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                 .queryParam("until", until.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
@@ -120,7 +241,7 @@ public class WorklogService {
         List<Map<String, Object>> merged = new ArrayList<>();
         for (String branch : branches) {
             String url = UriComponentsBuilder
-                    .fromUriString("https://api.github.com/repos/{owner}/{repo}/commits")
+                    .fromUriString(githubApiBaseUrl + "/repos/{owner}/{repo}/commits")
                     .queryParam("sha", branch)
                     .queryParam("author", author)
                     .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
@@ -138,7 +259,7 @@ public class WorklogService {
         List<Map<String, Object>> merged = new ArrayList<>();
         for (String branch : branches) {
             String url = UriComponentsBuilder
-                    .fromUriString("https://api.github.com/repos/{owner}/{repo}/commits")
+                    .fromUriString(githubApiBaseUrl + "/repos/{owner}/{repo}/commits")
                     .queryParam("sha", branch)
                     .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                     .queryParam("until", until.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
@@ -151,58 +272,79 @@ public class WorklogService {
     }
 
     private List<String> fetchBranchNames() {
-        String url = UriComponentsBuilder
-                .fromUriString("https://api.github.com/repos/{owner}/{repo}/branches")
-                .queryParam("per_page", 30)
+        TimedValue<List<String>> cached = branchCache;
+        if (cached != null && !cached.isExpired() && cached.value() != null && !cached.value().isEmpty()) {
+            return cached.value();
+        }
+
+        String startUrl = UriComponentsBuilder
+                .fromUriString(githubApiBaseUrl + "/repos/{owner}/{repo}/branches")
+                .queryParam("per_page", 100)
                 .buildAndExpand(owner, repo)
                 .toUriString();
 
-        try {
-            HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
-            ResponseEntity<List> response = restTemplate.exchange(url, HttpMethod.GET, request, List.class);
-            if (response.getBody() == null) {
-                return List.of("main");
+        List<Map<String, Object>> branchRows = fetchPagedMapList(startUrl, "branches");
+        List<String> names = new ArrayList<>();
+        for (Map<String, Object> row : branchRows) {
+            String name = string(row.get("name"));
+            if (!name.isBlank()) {
+                names.add(name);
             }
-
-            List<String> names = new ArrayList<>();
-            for (Object o : response.getBody()) {
-                if (o instanceof Map<?, ?> m) {
-                    Object n = m.get("name");
-                    if (n != null) {
-                        names.add(String.valueOf(n));
-                    }
-                }
-            }
-            if (names.isEmpty()) {
-                return List.of("main");
-            }
-            return names;
-        } catch (Exception e) {
-            log.warn("[worklog] failed to fetch branches. reason={}", e.getMessage());
-            return List.of("main");
         }
+
+        if (names.isEmpty()) {
+            names = List.of("main");
+        } else {
+            names = new ArrayList<>(new LinkedHashSet<>(names));
+        }
+
+        branchCache = TimedValue.of(names, branchCacheTtlSeconds);
+        return names;
     }
 
-    private List<Map<String, Object>> fetchCommitList(String url) {
-        try {
-            HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
-            ResponseEntity<List> response = restTemplate.exchange(url, HttpMethod.GET, request, List.class);
-            if (response.getBody() == null) {
-                return List.of();
+    private List<Map<String, Object>> fetchCommitList(String startUrl) {
+        return fetchPagedMapList(startUrl, "commits");
+    }
+
+    private List<Map<String, Object>> fetchPagedMapList(String startUrl, String typeLabel) {
+        List<Map<String, Object>> merged = new ArrayList<>();
+        String nextUrl = startUrl;
+        int pageCount = 0;
+
+        while (nextUrl != null && pageCount < Math.max(1, maxPages)) {
+            try {
+                HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
+                ResponseEntity<List> response = restTemplate.exchange(nextUrl, HttpMethod.GET, request, List.class);
+                List<Map<String, Object>> rows = listOfMap(response.getBody());
+                merged.addAll(rows);
+                pageCount++;
+                nextUrl = extractNextLink(response.getHeaders().getFirst("Link"));
+            } catch (Exception e) {
+                log.warn("[worklog] failed to fetch {}. url={}, reason={}", typeLabel, nextUrl, e.getMessage());
+                return merged;
             }
-            return response.getBody();
-        } catch (Exception e) {
-            log.warn("[worklog] failed to fetch commits. url={}, reason={}", url, e.getMessage());
-            return List.of();
         }
+
+        if (nextUrl != null) {
+            log.warn("[worklog] pagination truncated for {}. maxPages={} url={}", typeLabel, maxPages, startUrl);
+        }
+        return merged;
     }
 
     private Map<String, Object> fetchCommitDetail(String sha) {
-        String url = "https://api.github.com/repos/" + owner + "/" + repo + "/commits/" + sha;
+        TimedValue<Map<String, Object>> cached = commitDetailCache.get(sha);
+        if (cached != null && !cached.isExpired()) {
+            return cached.value();
+        }
+
+        String url = githubApiBaseUrl + "/repos/" + owner + "/" + repo + "/commits/" + sha;
         try {
             HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
             ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, request, Map.class);
-            return response.getBody() == null ? Map.of() : response.getBody();
+            Map<String, Object> detail = response.getBody() == null ? Map.of() : response.getBody();
+            commitDetailCache.put(sha, TimedValue.of(detail, commitDetailCacheTtlSeconds));
+            trimCache(commitDetailCache, 4096);
+            return detail;
         } catch (Exception e) {
             log.warn("[worklog] failed to fetch commit detail. sha={}, reason={}", sha, e.getMessage());
             return Map.of();
@@ -349,8 +491,11 @@ public class WorklogService {
                 .build();
     }
 
-    private List<Map<String, Object>> filterByPossibleAuthor(List<Map<String, Object>> commits, String requestedAuthor) {
-        String needle = requestedAuthor.toLowerCase();
+    private List<Map<String, Object>> filterByPossibleAuthor(List<Map<String, Object>> commits, List<String> authorCandidates) {
+        Set<String> needles = authorCandidates.stream()
+                .map(String::toLowerCase)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
         return commits.stream().filter(item -> {
             String authorLogin = string(map(item.get("author")).get("login")).toLowerCase();
             String committerLogin = string(map(item.get("committer")).get("login")).toLowerCase();
@@ -361,12 +506,13 @@ public class WorklogService {
             String authorEmail = string(map(commitMap.get("author")).get("email")).toLowerCase();
             String committerEmail = string(map(commitMap.get("committer")).get("email")).toLowerCase();
 
-            return authorLogin.contains(needle)
-                    || committerLogin.contains(needle)
-                    || authorName.contains(needle)
-                    || committerName.contains(needle)
-                    || authorEmail.contains(needle)
-                    || committerEmail.contains(needle);
+            return needles.stream().anyMatch(needle ->
+                    authorLogin.contains(needle)
+                            || committerLogin.contains(needle)
+                            || authorName.contains(needle)
+                            || committerName.contains(needle)
+                            || authorEmail.contains(needle)
+                            || committerEmail.contains(needle));
         }).collect(Collectors.toList());
     }
 
@@ -620,5 +766,54 @@ public class WorklogService {
     private List<String> dedupe(List<String> source) {
         Set<String> set = new LinkedHashSet<>(source);
         return new ArrayList<>(set);
+    }
+
+    private static String normalizeAuthorToken(String token) {
+        if (token == null) {
+            return "";
+        }
+        String normalized = token.trim();
+        while (normalized.startsWith("@")) {
+            normalized = normalized.substring(1).trim();
+        }
+        return normalized;
+    }
+
+    private <T> void trimCache(ConcurrentMap<String, TimedValue<T>> cache, int hardLimit) {
+        if (cache.size() <= hardLimit) {
+            return;
+        }
+
+        for (Map.Entry<String, TimedValue<T>> e : cache.entrySet()) {
+            TimedValue<T> value = e.getValue();
+            if (value == null || value.isExpired()) {
+                cache.remove(e.getKey());
+            }
+        }
+
+        if (cache.size() <= hardLimit) {
+            return;
+        }
+
+        int toRemove = cache.size() - hardLimit;
+        int removed = 0;
+        for (String key : cache.keySet()) {
+            if (removed >= toRemove) {
+                break;
+            }
+            cache.remove(key);
+            removed++;
+        }
+    }
+
+    private record TimedValue<T>(T value, long expiresAtEpochMillis) {
+        static <T> TimedValue<T> of(T value, long ttlSeconds) {
+            long ttl = Math.max(1L, ttlSeconds);
+            return new TimedValue<>(value, System.currentTimeMillis() + ttl * 1000);
+        }
+
+        boolean isExpired() {
+            return System.currentTimeMillis() >= expiresAtEpochMillis;
+        }
     }
 }
