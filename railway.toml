@@ -1,0 +1,7 @@
+[build]
+buildCommand = "chmod +x gradlew && ./gradlew clean bootJar -x test"
+
+[deploy]
+startCommand = "java -Xms96m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -Dserver.port=$PORT -jar build/libs/collaborative-messenger-0.0.1-SNAPSHOT.jar"
+healthcheckPath = "/auth/login"
+healthcheckTimeout = 60
