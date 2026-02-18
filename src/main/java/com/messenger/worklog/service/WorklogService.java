@@ -32,10 +32,10 @@ import java.util.stream.Collectors;
 public class WorklogService {
 
     @Value("${app.worklog.owner:kimsan259}")
-    private String owner;
+    private String fallbackOwner;
 
     @Value("${app.worklog.repo:collaborative-messenger}")
-    private String repo;
+    private String fallbackRepo;
 
     @Value("${app.worklog.default-author:kimsan4515}")
     private String defaultAuthor;
@@ -86,56 +86,54 @@ public class WorklogService {
             return cached;
         }
 
-        boolean fallbackToAllBranches = false;
         boolean fallbackToRecentWindow = false;
         boolean fallbackToRepoWide = false;
 
-        List<Map<String, Object>> commits = fetchCommitsByAuthors(authorCandidates, since, until);
+        // 1차: GitHub Search API로 작성자의 모든 저장소에서 커밋 조회
+        List<Map<String, Object>> commits = searchCommitsByAuthors(authorCandidates, since, until);
 
-        if (commits.isEmpty()) {
-            commits = fetchCommitsByAuthorsAcrossBranches(authorCandidates, since, until);
-            fallbackToAllBranches = !commits.isEmpty();
-        }
-
-        if (commits.isEmpty()) {
-            List<Map<String, Object>> repoTodayAcrossBranches = fetchCommitsAcrossBranches(since, until);
-            commits = filterByPossibleAuthor(repoTodayAcrossBranches, authorCandidates);
-            fallbackToAllBranches = !commits.isEmpty();
-
-            if (commits.isEmpty()) {
-                commits = repoTodayAcrossBranches;
-                fallbackToRepoWide = !commits.isEmpty();
-            }
-        }
-
+        // 2차: 오늘 커밋이 없으면 최근 N일로 확장
         if (commits.isEmpty()) {
             OffsetDateTime recentSince = since.minusDays(Math.max(1, recentWindowDays));
-            commits = fetchCommitsByAuthorsAcrossBranches(authorCandidates, recentSince, until);
+            commits = searchCommitsByAuthors(authorCandidates, recentSince, until);
             fallbackToRecentWindow = !commits.isEmpty();
+        }
 
-            if (commits.isEmpty()) {
-                List<Map<String, Object>> repoRecentAcrossBranches = fetchCommitsAcrossBranches(recentSince, until);
-                commits = filterByPossibleAuthor(repoRecentAcrossBranches, authorCandidates);
-                if (!commits.isEmpty()) {
-                    fallbackToRecentWindow = true;
-                }
-
-                if (commits.isEmpty()) {
-                    commits = repoRecentAcrossBranches;
-                    fallbackToRepoWide = !commits.isEmpty();
-                    fallbackToRecentWindow = !commits.isEmpty();
-                }
-            }
+        // 3차: Search API 실패 시 기존 fallback (설정된 저장소에서 조회)
+        if (commits.isEmpty()) {
+            commits = fetchCommitsByAuthors(authorCandidates, since, until);
+        }
+        if (commits.isEmpty()) {
+            OffsetDateTime recentSince = since.minusDays(Math.max(1, recentWindowDays));
+            commits = fetchCommitsByAuthors(authorCandidates, recentSince, until);
+            fallbackToRecentWindow = !commits.isEmpty();
         }
 
         commits = dedupeCommitMapsBySha(commits);
+
+        // 실제 커밋에서 저장소 정보 추출
+        String resolvedOwner = fallbackOwner;
+        String resolvedRepo = fallbackRepo;
+        if (!commits.isEmpty()) {
+            Map<String, Object> firstCommit = commits.get(0);
+            Map<String, Object> repository = map(firstCommit.get("repository"));
+            String fullName = string(repository.get("full_name"));
+            if (!fullName.isBlank() && fullName.contains("/")) {
+                String[] parts = fullName.split("/", 2);
+                resolvedOwner = parts[0];
+                resolvedRepo = parts[1];
+            }
+        }
+
         WorklogSummaryResponse summary = buildSummary(
                 String.join(",", authorCandidates),
                 today,
                 commits,
+                resolvedOwner,
+                resolvedRepo,
                 fallbackToRepoWide,
                 fallbackToRecentWindow,
-                fallbackToAllBranches
+                false
         );
         putCachedSummary(summaryCacheKey, summary);
         return summary;
@@ -180,7 +178,7 @@ public class WorklogService {
     }
 
     private String buildSummaryCacheKey(LocalDate date, List<String> authorCandidates) {
-        return owner + ":" + repo + ":" + date + ":" + String.join("|", authorCandidates);
+        return "search:" + date + ":" + String.join("|", authorCandidates);
     }
 
     private WorklogSummaryResponse getCachedSummary(String key) {
@@ -198,6 +196,59 @@ public class WorklogService {
     private void putCachedSummary(String key, WorklogSummaryResponse summary) {
         summaryCache.put(key, TimedValue.of(summary, summaryCacheTtlSeconds));
         trimCache(summaryCache, 256);
+    }
+
+    private List<Map<String, Object>> searchCommitsByAuthors(
+            List<String> authorCandidates,
+            OffsetDateTime since,
+            OffsetDateTime until
+    ) {
+        List<Map<String, Object>> merged = new ArrayList<>();
+        for (String author : authorCandidates) {
+            merged.addAll(searchCommitsByAuthor(author, since, until));
+        }
+        return dedupeCommitMapsBySha(merged);
+    }
+
+    private List<Map<String, Object>> searchCommitsByAuthor(String author, OffsetDateTime since, OffsetDateTime until) {
+        String sinceDate = since.toLocalDate().toString();
+        String untilDate = until.toLocalDate().toString();
+        String query = "author:" + author + " author-date:" + sinceDate + ".." + untilDate;
+
+        List<Map<String, Object>> allItems = new ArrayList<>();
+        int page = 1;
+
+        while (page <= Math.max(1, maxPages)) {
+            String url = UriComponentsBuilder
+                    .fromUriString(githubApiBaseUrl + "/search/commits")
+                    .queryParam("q", query)
+                    .queryParam("sort", "author-date")
+                    .queryParam("order", "desc")
+                    .queryParam("per_page", 100)
+                    .queryParam("page", page)
+                    .build()
+                    .toUriString();
+            try {
+                HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
+                ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, request, Map.class);
+                Map<String, Object> body = response.getBody();
+                if (body == null) break;
+
+                List<Map<String, Object>> items = listOfMap(body.get("items"));
+                if (items.isEmpty()) break;
+
+                allItems.addAll(items);
+
+                int totalCount = intValue(body.get("total_count"));
+                if (allItems.size() >= totalCount) break;
+                page++;
+            } catch (Exception e) {
+                log.warn("[worklog] search commits failed. author={}, reason={}", author, e.getMessage());
+                break;
+            }
+        }
+
+        return allItems;
     }
 
     private List<Map<String, Object>> fetchCommitsByAuthors(
@@ -231,7 +282,7 @@ public class WorklogService {
                 .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                 .queryParam("until", until.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                 .queryParam("per_page", 100)
-                .buildAndExpand(owner, repo)
+                .buildAndExpand(fallbackOwner, fallbackRepo)
                 .toUriString();
         return fetchCommitList(url);
     }
@@ -247,7 +298,7 @@ public class WorklogService {
                     .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                     .queryParam("until", until.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                     .queryParam("per_page", 100)
-                    .buildAndExpand(owner, repo)
+                    .buildAndExpand(fallbackOwner, fallbackRepo)
                     .toUriString();
             merged.addAll(fetchCommitList(url));
         }
@@ -264,7 +315,7 @@ public class WorklogService {
                     .queryParam("since", since.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                     .queryParam("until", until.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                     .queryParam("per_page", 100)
-                    .buildAndExpand(owner, repo)
+                    .buildAndExpand(fallbackOwner, fallbackRepo)
                     .toUriString();
             merged.addAll(fetchCommitList(url));
         }
@@ -280,7 +331,7 @@ public class WorklogService {
         String startUrl = UriComponentsBuilder
                 .fromUriString(githubApiBaseUrl + "/repos/{owner}/{repo}/branches")
                 .queryParam("per_page", 100)
-                .buildAndExpand(owner, repo)
+                .buildAndExpand(fallbackOwner, fallbackRepo)
                 .toUriString();
 
         List<Map<String, Object>> branchRows = fetchPagedMapList(startUrl, "branches");
@@ -331,13 +382,23 @@ public class WorklogService {
         return merged;
     }
 
-    private Map<String, Object> fetchCommitDetail(String sha) {
+    private Map<String, Object> fetchCommitDetail(String sha, Map<String, Object> commitItem) {
         TimedValue<Map<String, Object>> cached = commitDetailCache.get(sha);
         if (cached != null && !cached.isExpired()) {
             return cached.value();
         }
 
-        String url = githubApiBaseUrl + "/repos/" + owner + "/" + repo + "/commits/" + sha;
+        // Search API 결과에서 실제 저장소 정보 추출
+        String repoFullName = "";
+        Map<String, Object> repository = map(commitItem.get("repository"));
+        if (!repository.isEmpty()) {
+            repoFullName = string(repository.get("full_name"));
+        }
+        if (repoFullName.isBlank()) {
+            repoFullName = fallbackOwner + "/" + fallbackRepo;
+        }
+
+        String url = githubApiBaseUrl + "/repos/" + repoFullName + "/commits/" + sha;
         try {
             HttpEntity<Void> request = new HttpEntity<>(defaultHeaders());
             ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, request, Map.class);
@@ -346,7 +407,7 @@ public class WorklogService {
             trimCache(commitDetailCache, 4096);
             return detail;
         } catch (Exception e) {
-            log.warn("[worklog] failed to fetch commit detail. sha={}, reason={}", sha, e.getMessage());
+            log.warn("[worklog] failed to fetch commit detail. sha={}, repo={}, reason={}", sha, repoFullName, e.getMessage());
             return Map.of();
         }
     }
@@ -374,6 +435,8 @@ public class WorklogService {
             String requestedAuthor,
             LocalDate date,
             List<Map<String, Object>> commitsRaw,
+            String owner,
+            String repo,
             boolean fallbackToRepoWide,
             boolean fallbackToRecentWindow,
             boolean fallbackToAllBranches
@@ -402,7 +465,7 @@ public class WorklogService {
             String message = string(commitObj.get("message"));
             String firstLine = message.contains("\n") ? message.substring(0, message.indexOf('\n')) : message;
 
-            Map<String, Object> detail = fetchCommitDetail(sha);
+            Map<String, Object> detail = fetchCommitDetail(sha, item);
             Map<String, Object> stats = map(detail.get("stats"));
             int additions = intValue(stats.get("additions"));
             int deletions = intValue(stats.get("deletions"));
@@ -462,6 +525,8 @@ public class WorklogService {
         String text = buildShareText(
                 requestedAuthor,
                 date,
+                owner,
+                repo,
                 commitItems,
                 featureChanges,
                 refactorChanges,
@@ -534,6 +599,8 @@ public class WorklogService {
     private String buildShareText(
             String author,
             LocalDate date,
+            String owner,
+            String repo,
             List<WorklogCommitItem> commits,
             List<String> features,
             List<String> refactors,
