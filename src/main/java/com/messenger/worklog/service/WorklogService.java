@@ -61,7 +61,7 @@ public class WorklogService {
     @Value("${app.worklog.recent-window-days:2}")
     private long recentWindowDays;
 
-    @Value("${app.worklog.strict-user-repo:true}")
+    @Value("${app.worklog.strict-user-repo:false}")
     private boolean strictUserRepo;
 
     @Value("${app.worklog.enable-legacy-repo-fallback:false}")
@@ -238,12 +238,13 @@ public class WorklogService {
                 Map<String, Object> body = response.getBody();
                 if (body == null) break;
 
+                int totalCount = intValue(body.get("total_count"));
                 List<Map<String, Object>> items = listOfMap(body.get("items"));
+                log.info("[worklog] search author={}, page={}, total_count={}, items={}", author, page, totalCount, items.size());
                 if (items.isEmpty()) break;
 
                 allItems.addAll(items);
 
-                int totalCount = intValue(body.get("total_count"));
                 if (allItems.size() >= totalCount) break;
                 page++;
             } catch (Exception e) {
@@ -397,9 +398,6 @@ public class WorklogService {
         Map<String, Object> repository = map(commitItem.get("repository"));
         if (!repository.isEmpty()) {
             repoFullName = string(repository.get("full_name"));
-        }
-        if (repoFullName.isBlank() && strictUserRepo) {
-            return Map.of();
         }
         if (repoFullName.isBlank()) {
             repoFullName = fallbackOwner + "/" + fallbackRepo;
@@ -854,15 +852,11 @@ public class WorklogService {
     }
 
     private String buildSearchQuery(String author, String sinceDate, String untilDate) {
-        StringBuilder query = new StringBuilder();
-        // qualifier-only 검색은 422가 날 수 있어 plain text(author)도 포함한다.
-        query.append(author)
-                .append(" author:").append(author)
-                .append(" author-date:").append(sinceDate).append("..").append(untilDate);
-        if (strictUserRepo) {
-            query.append(" user:").append(author);
-        }
-        return query.toString();
+        // GitHub Search Commits API: author: 로 커밋 작성자 필터, author-date: 로 날짜 필터
+        // user: qualifier 는 author: 와 충돌하여 결과가 0건이 되므로 사용하지 않는다.
+        String query = "author:" + author + " author-date:" + sinceDate + ".." + untilDate;
+        log.debug("[worklog] search query: {}", query);
+        return query;
     }
 
     private String resolveTopRepositoryFullName(List<Map<String, Object>> commits) {
