@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,14 +23,23 @@ public class UserPruneInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final Environment environment;
 
     @Value("${app.user-maintenance.prune-on-startup:false}")
     private boolean pruneOnStartup;
+
+    @Value("${app.user-maintenance.allow-prune-in-production:false}")
+    private boolean allowPruneInProduction;
 
     @Override
     @Transactional
     public void run(String... args) {
         if (!pruneOnStartup) {
+            return;
+        }
+
+        if (isProductionProfile() && !allowPruneInProduction) {
+            log.warn("[user-prune] blocked in production. set app.user-maintenance.allow-prune-in-production=true to override.");
             return;
         }
 
@@ -95,5 +105,14 @@ public class UserPruneInitializer implements CommandLineRunner {
         merged.addAll(first);
         merged.addAll(second);
         return merged.toArray();
+    }
+
+    private boolean isProductionProfile() {
+        for (String profile : environment.getActiveProfiles()) {
+            if ("prod".equalsIgnoreCase(profile) || "production".equalsIgnoreCase(profile)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

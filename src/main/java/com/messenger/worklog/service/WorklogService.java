@@ -61,6 +61,12 @@ public class WorklogService {
     @Value("${app.worklog.recent-window-days:2}")
     private long recentWindowDays;
 
+    @Value("${app.worklog.strict-user-repo:true}")
+    private boolean strictUserRepo;
+
+    @Value("${app.worklog.enable-legacy-repo-fallback:false}")
+    private boolean enableLegacyRepoFallback;
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final ConcurrentMap<String, TimedValue<WorklogSummaryResponse>> summaryCache = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, TimedValue<Map<String, Object>>> commitDetailCache = new ConcurrentHashMap<>();
@@ -100,29 +106,27 @@ public class WorklogService {
         }
 
         // 3차: Search API 실패 시 기존 fallback (설정된 저장소에서 조회)
-        if (commits.isEmpty()) {
+        if (enableLegacyRepoFallback && commits.isEmpty()) {
             commits = fetchCommitsByAuthors(authorCandidates, since, until);
+            fallbackToRepoWide = !commits.isEmpty();
         }
-        if (commits.isEmpty()) {
+        if (enableLegacyRepoFallback && commits.isEmpty()) {
             OffsetDateTime recentSince = since.minusDays(Math.max(1, recentWindowDays));
             commits = fetchCommitsByAuthors(authorCandidates, recentSince, until);
             fallbackToRecentWindow = !commits.isEmpty();
+            fallbackToRepoWide = !commits.isEmpty();
         }
 
         commits = dedupeCommitMapsBySha(commits);
 
         // 실제 커밋에서 저장소 정보 추출
-        String resolvedOwner = fallbackOwner;
-        String resolvedRepo = fallbackRepo;
-        if (!commits.isEmpty()) {
-            Map<String, Object> firstCommit = commits.get(0);
-            Map<String, Object> repository = map(firstCommit.get("repository"));
-            String fullName = string(repository.get("full_name"));
-            if (!fullName.isBlank() && fullName.contains("/")) {
-                String[] parts = fullName.split("/", 2);
-                resolvedOwner = parts[0];
-                resolvedRepo = parts[1];
-            }
+        String resolvedOwner = authorCandidates.get(0);
+        String resolvedRepo = "no-commits";
+        String topRepository = resolveTopRepositoryFullName(commits);
+        if (!topRepository.isBlank() && topRepository.contains("/")) {
+            String[] parts = topRepository.split("/", 2);
+            resolvedOwner = parts[0];
+            resolvedRepo = parts[1];
         }
 
         WorklogSummaryResponse summary = buildSummary(
@@ -213,7 +217,7 @@ public class WorklogService {
     private List<Map<String, Object>> searchCommitsByAuthor(String author, OffsetDateTime since, OffsetDateTime until) {
         String sinceDate = since.toLocalDate().toString();
         String untilDate = until.toLocalDate().toString();
-        String query = "author:" + author + " author-date:" + sinceDate + ".." + untilDate;
+        String query = buildSearchQuery(author, sinceDate, untilDate);
 
         List<Map<String, Object>> allItems = new ArrayList<>();
         int page = 1;
@@ -393,6 +397,9 @@ public class WorklogService {
         Map<String, Object> repository = map(commitItem.get("repository"));
         if (!repository.isEmpty()) {
             repoFullName = string(repository.get("full_name"));
+        }
+        if (repoFullName.isBlank() && strictUserRepo) {
+            return Map.of();
         }
         if (repoFullName.isBlank()) {
             repoFullName = fallbackOwner + "/" + fallbackRepo;
@@ -844,6 +851,32 @@ public class WorklogService {
             normalized = normalized.substring(1).trim();
         }
         return normalized;
+    }
+
+    private String buildSearchQuery(String author, String sinceDate, String untilDate) {
+        StringBuilder query = new StringBuilder();
+        // qualifier-only 검색은 422가 날 수 있어 plain text(author)도 포함한다.
+        query.append(author)
+                .append(" author:").append(author)
+                .append(" author-date:").append(sinceDate).append("..").append(untilDate);
+        if (strictUserRepo) {
+            query.append(" user:").append(author);
+        }
+        return query.toString();
+    }
+
+    private String resolveTopRepositoryFullName(List<Map<String, Object>> commits) {
+        Map<String, Integer> repoCount = new LinkedHashMap<>();
+        for (Map<String, Object> item : commits) {
+            String fullName = string(map(item.get("repository")).get("full_name"));
+            if (!fullName.isBlank()) {
+                repoCount.put(fullName, repoCount.getOrDefault(fullName, 0) + 1);
+            }
+        }
+        return repoCount.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse("");
     }
 
     private <T> void trimCache(ConcurrentMap<String, TimedValue<T>> cache, int hardLimit) {

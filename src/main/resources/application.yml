@@ -114,6 +114,8 @@ app:
     branch-cache-ttl-seconds: ${WORKLOG_BRANCH_CACHE_TTL_SECONDS:300}
     commit-detail-cache-ttl-seconds: ${WORKLOG_COMMIT_DETAIL_CACHE_TTL_SECONDS:120}
     recent-window-days: ${WORKLOG_RECENT_WINDOW_DAYS:2}
+    strict-user-repo: ${WORKLOG_STRICT_USER_REPO:true}
+    enable-legacy-repo-fallback: ${WORKLOG_ENABLE_LEGACY_REPO_FALLBACK:false}
   mail:
     provider: ${APP_MAIL_PROVIDER:none}
     resend-api-key: ${RESEND_API_KEY:}
@@ -124,4 +126,5 @@ app:
     debug-expose-code: ${EMAIL_VERIFICATION_DEBUG_EXPOSE_CODE:false}
 
   user-maintenance:
-    prune-on-startup: ${USER_PRUNE_ON_STARTUP:true}
+    prune-on-startup: ${USER_PRUNE_ON_STARTUP:false}
+    allow-prune-in-production: ${USER_PRUNE_ALLOW_IN_PRODUCTION:false}
